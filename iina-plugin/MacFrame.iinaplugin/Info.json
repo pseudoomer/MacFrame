@@ -1,0 +1,33 @@
+{
+  "name": "MacFrame",
+  "identifier": "io.github.pseudoomer.macframe",
+  "version": "0.1.0",
+  "description": "Apple Silicon native Metal & VideoToolbox real-time frame interpolation for IINA (open-source SVP 4 Pro alternative).",
+  "author": {
+    "name": "pseudoomer",
+    "url": "https://github.com/pseudoomer/MacFrame"
+  },
+  "entry": "main.js",
+  "preferencesPage": "ui/preferences.html",
+  "preferenceDefaults": {
+    "enabled": true,
+    "fps_mode": "display",
+    "custom_fps": 120,
+    "preset": "film",
+    "backend": "mflow",
+    "quality": 1.0,
+    "guard": 0.65,
+    "smoothness": 0.95,
+    "scene": 1,
+    "dedup": 1,
+    "static_lock": 1,
+    "letterbox": 1,
+    "governor": 1,
+    "debug_osd": 0
+  },
+  "permissions": [
+    "show-osd",
+    "video-overlay",
+    "file-system"
+  ]
+}

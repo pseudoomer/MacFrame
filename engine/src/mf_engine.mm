@@ -488,8 +488,8 @@ struct mf_engine {
             [enc setTexture:f01_a[l] atIndex:2];
             ctx.dispatch2D(enc, ctx.pso_flow_bilateral_smooth, pyr_w[l], pyr_h[l]);
 
-            // DIS sub-pixel refinement on finer levels
-            int dis_n = (l <= me_base + 1) ? tp.dis_iters : 1;
+            // DIS sub-pixel refinement on finest ME levels
+            int dis_n = (l == me_base) ? tp.dis_iters : ((l == me_base + 1 && tp.tier >= 4) ? 1 : 0);
             for (int it = 0; it < dis_n; ++it) {
                 [enc setTexture:f0.pyr[l] atIndex:0];
                 [enc setTexture:f1.pyr[l] atIndex:1];
@@ -565,8 +565,8 @@ struct mf_engine {
         [blit endEncoding];
 
         [cb commit];
-        [cb waitUntilCompleted];
 
+        // Read stats from previous completed pair (or after first sync) without stalling the pipeline mid-pair
         float total_me_px = float(pyr_w[me_base] * pyr_h[me_base]);
         float mean_conf = (float(cstats->conf_sum_fixed) / 1024.0f) / std::max(total_me_px, 1.0f);
         float fb_ratio  = float(cstats->fallback_pixels) / std::max(total_me_px, 1.0f);

@@ -1,0 +1,36 @@
+diff --git a/configure b/configure
+index 4f5353f..7664f36 100755
+--- a/configure
++++ b/configure
+@@ -3929,6 +3929,7 @@ zoompan_filter_deps="swscale"
+ zscale_filter_deps="libzimg const_nan"
+ scale_vaapi_filter_deps="vaapi"
+ scale_vt_filter_deps="videotoolbox VTPixelTransferSessionCreate"
++macframe_filter_deps="videotoolbox"
+ scale_vulkan_filter_deps="vulkan spirv_compiler"
+ vpp_qsv_filter_deps="libmfx"
+ vpp_qsv_filter_select="qsvvpp"
+diff --git a/libavfilter/Makefile b/libavfilter/Makefile
+index 994d977..5eb4d06 100644
+--- a/libavfilter/Makefile
++++ b/libavfilter/Makefile
+@@ -462,6 +462,7 @@ OBJS-$(CONFIG_SCALE_NPP_FILTER)              += vf_scale_npp.o scale_eval.o
+ OBJS-$(CONFIG_SCALE_QSV_FILTER)              += vf_vpp_qsv.o
+ OBJS-$(CONFIG_SCALE_VAAPI_FILTER)            += vf_scale_vaapi.o scale_eval.o vaapi_vpp.o
+ OBJS-$(CONFIG_SCALE_VT_FILTER)               += vf_scale_vt.o scale_eval.o
++OBJS-$(CONFIG_MACFRAME_FILTER)               += vf_macframe.o
+ OBJS-$(CONFIG_SCALE_VULKAN_FILTER)           += vf_scale_vulkan.o vulkan.o vulkan_filter.o
+ OBJS-$(CONFIG_SCALE2REF_FILTER)              += vf_scale.o scale_eval.o
+ OBJS-$(CONFIG_SCALE2REF_NPP_FILTER)          += vf_scale_npp.o scale_eval.o
+diff --git a/libavfilter/allfilters.c b/libavfilter/allfilters.c
+index 149bf50..941a61b 100644
+--- a/libavfilter/allfilters.c
++++ b/libavfilter/allfilters.c
+@@ -435,6 +435,7 @@ extern const AVFilter ff_vf_scale_npp;
+ extern const AVFilter ff_vf_scale_qsv;
+ extern const AVFilter ff_vf_scale_vaapi;
+ extern const AVFilter ff_vf_scale_vt;
++extern const AVFilter ff_vf_macframe;
+ extern const AVFilter ff_vf_scale_vulkan;
+ extern const AVFilter ff_vf_scale2ref;
+ extern const AVFilter ff_vf_scale2ref_npp;
