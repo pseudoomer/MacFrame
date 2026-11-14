@@ -1,7 +1,7 @@
 {
   "name": "MacFrame",
   "identifier": "io.github.pseudoomer.macframe",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Apple Silicon native Metal & VideoToolbox real-time frame interpolation for IINA (open-source SVP 4 Pro alternative).",
   "author": {
     "name": "pseudoomer",
