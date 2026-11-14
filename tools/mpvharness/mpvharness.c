@@ -85,7 +85,6 @@ int main(int argc, char **argv) {
     const char *opts[128];
     int nopts = 0, max_frames = 300, dump_n = -1;
     const char *dump_path = NULL;
-    static char defpath[1024];
 
     for (int i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--lib") && i + 1 < argc) lib = argv[++i];
@@ -104,10 +103,7 @@ int main(int argc, char **argv) {
         return 2;
     }
     if (!lib) {
-        snprintf(defpath, sizeof defpath,
-                 "%s/Applications/IINA-MacFrame.app/Contents/Frameworks/libmpv.2.dylib",
-                 getenv("HOME"));
-        lib = defpath;
+        lib = "/Applications/IINA.app/Contents/Frameworks/libmpv.2.dylib";
     }
     void *h_lib = dlopen(lib, RTLD_LAZY | RTLD_LOCAL);
     if (!h_lib) {

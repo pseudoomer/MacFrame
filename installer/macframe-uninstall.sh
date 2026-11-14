@@ -13,6 +13,14 @@ FW_DIR="${TARGET_APP}/Contents/Frameworks"
 
 echo "=== MacFrame Uninstaller (Target: ${TARGET_APP}, Version: ${IINA_VER}) ==="
 
+PLIST_PATH="${HOME}/Library/LaunchAgents/io.github.pseudoomer.macframe.autoinject.plist"
+if [[ -f "${PLIST_PATH}" ]]; then
+    launchctl unload "${PLIST_PATH}" 2>/dev/null || true
+    rm -f "${PLIST_PATH}"
+    echo "Removed auto-reinject LaunchAgent."
+fi
+rm -f "${HOME}/Library/Application Support/MacFrame/auto-reinject.sh"
+
 if [[ ! -f "${BACKUP_DIR}/libavfilter.10.dylib.orig" ]]; then
     echo "[ERROR] Backup not found at ${BACKUP_DIR}/libavfilter.10.dylib.orig"
     exit 1

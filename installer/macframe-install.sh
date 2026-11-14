@@ -68,6 +68,7 @@ mkdir -p "${PLUGIN_DST_DIR}"
 rm -rf "${PLUGIN_DST}"
 cp -R "${ROOT_DIR}/iina-plugin/MacFrame.iinaplugin" "${PLUGIN_DST}"
 defaults write com.colliderli.iina iinaEnablePluginSystem -bool true 2>/dev/null || true
+defaults write com.colliderli.iina "PluginEnabled.io.github.pseudoomer.macframe" -bool true 2>/dev/null || true
 echo "  [OK] Installed IINA plugin to ${PLUGIN_DST}"
 
 # 5. Install standalone MacFrame.app control center
@@ -83,6 +84,54 @@ if [[ -d "${ROOT_DIR}/build/MacFrame.app" ]]; then
     codesign --force --sign - "${APP_DST_DIR}/MacFrame.app/Contents/Frameworks/libmacframe.1.0.0.dylib"
     codesign --force --sign - "${APP_DST_DIR}/MacFrame.app"
     echo "  [OK] Installed standalone control app to ${APP_DST_DIR}/MacFrame.app"
+fi
+
+# 6. Install Auto-Heal LaunchAgent so IINA updates automatically re-inject MacFrame
+WATCHER_DIR="${HOME}/Library/Application Support/MacFrame"
+WATCHER_SH="${WATCHER_DIR}/auto-reinject.sh"
+mkdir -p "${WATCHER_DIR}"
+cat > "${WATCHER_SH}" <<EOF
+#!/usr/bin/env bash
+if [[ -d "${TARGET_APP}/Contents/Frameworks" && ! -f "${TARGET_APP}/Contents/Frameworks/libmacframe.dylib" ]]; then
+    "${ROOT_DIR}/installer/macframe-install.sh" "${TARGET_APP}" >/dev/null 2>&1 || true
+fi
+EOF
+chmod +x "${WATCHER_SH}"
+
+LAUNCH_AGENTS_DIR="${HOME}/Library/LaunchAgents"
+PLIST_PATH="${LAUNCH_AGENTS_DIR}/io.github.pseudoomer.macframe.autoinject.plist"
+mkdir -p "${LAUNCH_AGENTS_DIR}"
+cat > "${PLIST_PATH}" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>io.github.pseudoomer.macframe.autoinject</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>${WATCHER_SH}</string>
+    </array>
+    <key>WatchPaths</key>
+    <array>
+        <string>${TARGET_APP}/Contents/Frameworks</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>
+EOF
+launchctl unload "${PLIST_PATH}" 2>/dev/null || true
+launchctl load "${PLIST_PATH}" 2>/dev/null || true
+echo "  [OK] Enabled auto-reinject watcher for IINA updates (${PLIST_PATH})"
+
+# 7. If target IINA is currently running without libmacframe.dylib loaded, stop it so next launch uses the injected engine
+RUNNING_PID="$(pgrep -f "${TARGET_APP}/Contents/MacOS/IINA" | head -n 1 || true)"
+if [[ -n "${RUNNING_PID}" ]]; then
+    if ! lsof -p "${RUNNING_PID}" 2>/dev/null | grep -q "libmacframe.dylib"; then
+        echo "Stopping stale un-injected IINA process (PID ${RUNNING_PID})..."
+        kill "${RUNNING_PID}" 2>/dev/null || true
+    fi
 fi
 
 echo "=== MacFrame Installation Complete! ==="

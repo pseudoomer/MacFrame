@@ -574,8 +574,9 @@ struct mf_engine {
         [blit endEncoding];
 
         [cb commit];
+        [cb waitUntilCompleted];
 
-        // Read stats from previous completed pair (or after first sync) without stalling the pipeline mid-pair
+        // Read stats from completed pair flow estimation
         float total_me_px = float(pyr_w[me_base] * pyr_h[me_base]);
         float mean_conf = (float(cstats->conf_sum_fixed) / 1024.0f) / std::max(total_me_px, 1.0f);
         float fb_ratio  = float(cstats->fallback_pixels) / std::max(total_me_px, 1.0f);

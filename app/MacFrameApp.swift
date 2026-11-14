@@ -43,20 +43,21 @@ final class MacFrameViewModel: ObservableObject {
     @Published var targetIinaPath: String = "/Applications/IINA.app"
     @Published var iinaInstalledStatus: String = "检测中..."
     @Published var isEngineInstalledInTarget: Bool = false
+    @Published var autoInjectOnUpdate: Bool = true
     @Published var statusLogMessage: String = ""
 
     private var ipcPtr: UnsafeMutablePointer<mf_ipc_state>?
     private var timer: Timer?
     private var isLoadingInitial = false
+    private var isRunningInstaller = false
+    private var pollCounter: Int = 0
 
     init() {
-        let testCopy = NSHomeDirectory() + "/Applications/IINA-MacFrame.app"
-        if FileManager.default.fileExists(atPath: testCopy) {
-            targetIinaPath = testCopy
-        }
+        targetIinaPath = "/Applications/IINA.app"
         ipcPtr = mf_ipc_open()
         loadFromIPC()
         refreshIinaInstallStatus()
+        ensureInjectedIfNeeded()
 
         timer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in
             Task { @MainActor in
@@ -160,19 +161,32 @@ final class MacFrameViewModel: ObservableObject {
             dedupDrops     = st.pointee.stats.dedup_drops
             framesOut      = st.pointee.stats.frames_out
         }
+
+        pollCounter += 1
+        if pollCounter % 15 == 0 {
+            refreshIinaInstallStatus()
+            ensureInjectedIfNeeded()
+        }
+    }
+
+    func ensureInjectedIfNeeded() {
+        guard autoInjectOnUpdate, !isRunningInstaller else { return }
+        if FileManager.default.fileExists(atPath: targetIinaPath) && !isEngineInstalledInTarget {
+            runInstaller(install: true)
+        }
     }
 
     func refreshIinaInstallStatus() {
         let dylibPath = targetIinaPath + "/Contents/Frameworks/libmacframe.dylib"
         if FileManager.default.fileExists(atPath: dylibPath) {
             isEngineInstalledInTarget = true
-            iinaInstalledStatus = "已安装 MacFrame 零拷贝引擎"
+            iinaInstalledStatus = "已自动注入 /Applications/IINA.app（IINA 更新免维护守护中）"
         } else if FileManager.default.fileExists(atPath: targetIinaPath) {
             isEngineInstalledInTarget = false
-            iinaInstalledStatus = "未安装补帧引擎（原版 IINA 状态）"
+            iinaInstalledStatus = "未注入补帧引擎（原版 IINA 状态）"
         } else {
             isEngineInstalledInTarget = false
-            iinaInstalledStatus = "未找到该路径下的 IINA.app"
+            iinaInstalledStatus = "未找到 /Applications/IINA.app"
         }
     }
 
@@ -191,9 +205,16 @@ final class MacFrameViewModel: ObservableObject {
     }
 
     func runInstaller(install: Bool) {
+        if isRunningInstaller { return }
+        isRunningInstaller = true
+        if install {
+            autoInjectOnUpdate = true
+        } else {
+            autoInjectOnUpdate = false
+        }
         let root = repoRootPath()
         let script = root + (install ? "/installer/macframe-install.sh" : "/installer/macframe-uninstall.sh")
-        statusLogMessage = install ? "正在安装 MacFrame 引擎到 \(targetIinaPath)..." : "正在还原原版 IINA..."
+        statusLogMessage = install ? "正在自动注入 MacFrame 引擎到 \(targetIinaPath)..." : "正在还原原版 IINA..."
 
         let target = targetIinaPath
         Task.detached {
@@ -215,10 +236,11 @@ final class MacFrameViewModel: ObservableObject {
             let code = proc.terminationStatus
             let finalOutput = output
             await MainActor.run {
+                self.isRunningInstaller = false
                 self.refreshIinaInstallStatus()
                 if code == 0 {
                     self.statusLogMessage = install
-                        ? "✅ 已成功安装到 \(target)"
+                        ? "✅ 已自动注入 \(target)（IINA 更新后也会自动重新注入）"
                         : "✅ 已无损还原 \(target) 为原版状态（含原始签名）"
                 } else {
                     self.statusLogMessage = "❌ 操作返回错误 (\(code)): \(finalOutput.suffix(180))"
@@ -580,7 +602,7 @@ struct ControlCenterView: View {
     private var iinaIntegrationCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("IINA 播放器集成管理")
+                Text("IINA 原版直连注入与免维护守护 (/Applications/IINA.app)")
                     .font(.system(size: 14, weight: .semibold))
                 Spacer()
                 Circle()
@@ -590,25 +612,11 @@ struct ControlCenterView: View {
                     .font(.system(size: 12, weight: .medium))
             }
 
-            HStack(spacing: 8) {
-                Text("目标 IINA 路径:")
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-                Picker("", selection: Binding(
-                    get: { vm.targetIinaPath },
-                    set: { val in
-                        vm.targetIinaPath = val
-                        vm.refreshIinaInstallStatus()
-                    }
-                )) {
-                    Text("/Applications/IINA.app (系统正式版)").tag("/Applications/IINA.app")
-                    Text("~/Applications/IINA-MacFrame.app (测试副本)").tag(NSHomeDirectory() + "/Applications/IINA-MacFrame.app")
-                }
-                .labelsHidden()
-            }
+            Toggle("IINA 版本更新后自动静默重注入（免维护守护）", isOn: $vm.autoInjectOnUpdate)
+                .font(.system(size: 12))
 
             HStack(spacing: 12) {
-                Button("一键安装 / 更新引擎到 IINA") {
+                Button("立即注入 / 重新同步到 IINA") {
                     vm.runInstaller(install: true)
                 }
                 .buttonStyle(.borderedProminent)
@@ -620,7 +628,7 @@ struct ControlCenterView: View {
 
                 Spacer()
 
-                Button("启动此 IINA") {
+                Button("打开 IINA") {
                     vm.launchTargetIina()
                 }
                 .buttonStyle(.bordered)

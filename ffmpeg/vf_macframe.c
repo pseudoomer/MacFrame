@@ -458,8 +458,21 @@ static CVPixelBufferRef sw_frame_to_cvpixelbuffer(const AVFrame *in)
     }
     dst_uv = (uint8_t *)CVPixelBufferGetBaseAddressOfPlane(pb, 1);
     stride_uv = CVPixelBufferGetBytesPerRowOfPlane(pb, 1);
-    for (y = 0; y < in->height / 2; ++y) {
-        memcpy(dst_uv + y * stride_uv, in->data[1] + y * in->linesize[1], (size_t)in->width * bpp);
+    if (in->format == AV_PIX_FMT_YUV420P) {
+        int x;
+        for (y = 0; y < in->height / 2; ++y) {
+            const uint8_t *src_u = in->data[1] + y * in->linesize[1];
+            const uint8_t *src_v = in->data[2] + y * in->linesize[2];
+            uint8_t *row_uv = dst_uv + y * stride_uv;
+            for (x = 0; x < in->width / 2; ++x) {
+                row_uv[2 * x + 0] = src_u[x];
+                row_uv[2 * x + 1] = src_v[x];
+            }
+        }
+    } else {
+        for (y = 0; y < in->height / 2; ++y) {
+            memcpy(dst_uv + y * stride_uv, in->data[1] + y * in->linesize[1], (size_t)in->width * bpp);
+        }
     }
     CVPixelBufferUnlockBaseAddress(pb, 0);
     return pb;
@@ -517,8 +530,21 @@ static AVFrame *wrap_output_cvpixelbuffer(AVFilterLink *outlink,
         }
         src_uv = (const uint8_t *)CVPixelBufferGetBaseAddressOfPlane(pixbuf, 1);
         stride_uv = CVPixelBufferGetBytesPerRowOfPlane(pixbuf, 1);
-        for (y = 0; y < out->height / 2; ++y) {
-            memcpy(out->data[1] + y * out->linesize[1], src_uv + y * stride_uv, (size_t)out->width * bpp);
+        if (outlink->format == AV_PIX_FMT_YUV420P) {
+            int x;
+            for (y = 0; y < out->height / 2; ++y) {
+                const uint8_t *row_uv = src_uv + y * stride_uv;
+                uint8_t *dst_u = out->data[1] + y * out->linesize[1];
+                uint8_t *dst_v = out->data[2] + y * out->linesize[2];
+                for (x = 0; x < out->width / 2; ++x) {
+                    dst_u[x] = row_uv[2 * x + 0];
+                    dst_v[x] = row_uv[2 * x + 1];
+                }
+            }
+        } else {
+            for (y = 0; y < out->height / 2; ++y) {
+                memcpy(out->data[1] + y * out->linesize[1], src_uv + y * stride_uv, (size_t)out->width * bpp);
+            }
         }
         CVPixelBufferUnlockBaseAddress(pixbuf, kCVPixelBufferLock_ReadOnly);
         CVPixelBufferRelease(pixbuf);
@@ -643,6 +669,7 @@ static const AVOption macframe_options[] = {
     { "quality",     "Quality ceiling (0.0..1.0)",             OFFSET(quality),     AV_OPT_TYPE_FLOAT,  {.dbl = 1.0},   0.0f,  1.0f, FLAGS },
     { "guard",       "Artifact guard strength (0.0..1.0)",     OFFSET(guard),       AV_OPT_TYPE_FLOAT,  {.dbl = 0.65},  0.0f,  1.0f, FLAGS },
     { "smoothness",  "Motion phase smoothness (0.0..1.0)",     OFFSET(smoothness),  AV_OPT_TYPE_FLOAT,  {.dbl = 0.95},  0.0f,  1.0f, FLAGS },
+    { "smooth",      "Motion phase smoothness (0.0..1.0)",     OFFSET(smoothness),  AV_OPT_TYPE_FLOAT,  {.dbl = 0.95},  0.0f,  1.0f, FLAGS },
     { "scene",       "Enable scene cut detection",             OFFSET(scene),       AV_OPT_TYPE_BOOL,   {.i64 = 1},        0,     1, FLAGS },
     { "dedup",       "Enable anime 2s/3s deduplication",       OFFSET(dedup),       AV_OPT_TYPE_BOOL,   {.i64 = 1},        0,     1, FLAGS },
     { "static_lock", "Lock static HUD/logos/subtitles",        OFFSET(static_lock), AV_OPT_TYPE_BOOL,   {.i64 = 1},        0,     1, FLAGS },
@@ -659,6 +686,7 @@ static const enum AVPixelFormat macframe_pix_fmts[] = {
     AV_PIX_FMT_VIDEOTOOLBOX,
     AV_PIX_FMT_NV12,
     AV_PIX_FMT_P010LE,
+    AV_PIX_FMT_YUV420P,
     AV_PIX_FMT_NONE
 };
 
@@ -691,3 +719,23 @@ const AVFilter ff_vf_macframe = {
     .flags          = AVFILTER_FLAG_HWDEVICE,
     .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
 };
+
+#if defined(__APPLE__) && defined(__aarch64__)
+__attribute__((constructor))
+static void macframe_avfilter_autoload(void)
+{
+    char sibling_path[1024] = {0};
+    Dl_info dli;
+    if (dladdr((const void *)&macframe_avfilter_autoload, &dli) && dli.dli_fname) {
+        const char *slash = strrchr(dli.dli_fname, '/');
+        if (slash) {
+            size_t dir_len = (size_t)(slash - dli.dli_fname);
+            if (dir_len + sizeof("/libmacframe.dylib") < sizeof(sibling_path)) {
+                memcpy(sibling_path, dli.dli_fname, dir_len);
+                strcpy(sibling_path + dir_len, "/libmacframe.dylib");
+                dlopen(sibling_path, RTLD_NOW | RTLD_LOCAL);
+            }
+        }
+    }
+}
+#endif

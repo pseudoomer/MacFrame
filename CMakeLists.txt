@@ -10,6 +10,7 @@ set(CMAKE_OSX_ARCHITECTURES "arm64")
 add_compile_options(-Wall -Wextra -Wno-unused-parameter -Wno-deprecated-declarations -O3)
 
 find_library(FOUNDATION_FW Foundation REQUIRED)
+find_library(APPKIT_FW AppKit REQUIRED)
 find_library(METAL_FW Metal REQUIRED)
 find_library(COREVIDEO_FW CoreVideo REQUIRED)
 find_library(COREMEDIA_FW CoreMedia REQUIRED)
@@ -24,6 +25,7 @@ add_library(macframe SHARED
     engine/src/mf_governor.cpp
     engine/src/mf_metal_context.mm
     engine/src/mf_ipc.mm
+    engine/src/mf_autohook.mm
     engine/src/mf_engine.mm
 )
 
@@ -43,6 +45,7 @@ set_target_properties(macframe PROPERTIES
 
 target_link_libraries(macframe PUBLIC
     ${FOUNDATION_FW}
+    ${APPKIT_FW}
     ${METAL_FW}
     ${COREVIDEO_FW}
     ${COREMEDIA_FW}
@@ -71,7 +74,7 @@ target_link_libraries(mpvharness PRIVATE
     ${OPENGL_FW}
 )
 target_link_options(mpvharness PRIVATE
-    "-Wl,-rpath,$ENV{HOME}/Applications/IINA-MacFrame.app/Contents/Frameworks"
+    "-Wl,-rpath,/Applications/IINA.app/Contents/Frameworks"
 )
 
 # 4. Unit & GPU Regression Tests: mftests
