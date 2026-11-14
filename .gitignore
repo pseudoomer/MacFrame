@@ -1,0 +1,25 @@
+# Build directories
+build/
+out/
+dist/
+ffmpeg-build/
+ffmpeg-src/
+
+# Local test media and scratch outputs
+media/
+*.mp4
+*.mov
+*.mkv
+*.yuv
+*.ppm
+*.png
+*.metallib
+*.air
+
+# macOS / IDE
+.DS_Store
+*.xcodeproj
+*.xcworkspace
+.vscode/
+.idea/
+compile_commands.json
