@@ -35,6 +35,7 @@ public:
     Timeline(double out_fps, bool dedup_enabled, bool scene_detect_enabled, float smoothness);
 
     void reset();
+    void set_params(bool dedup_enabled, bool scene_detect_enabled, float smoothness);
     void push(const TimelineInputFrame &frame);
     void flush();
 

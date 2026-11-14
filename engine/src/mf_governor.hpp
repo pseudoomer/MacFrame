@@ -20,6 +20,7 @@ public:
     Governor(double out_fps, float quality_ceiling, bool adaptive);
 
     void reset();
+    void set_params(float quality_ceiling, bool adaptive);
     void record_gpu_time_ms(double ms);
 
     int current_tier() const { return current_tier_; }

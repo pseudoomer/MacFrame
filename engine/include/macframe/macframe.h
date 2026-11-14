@@ -93,6 +93,9 @@ void mf_engine_reset(mf_engine *e);
 // Query runtime statistics and governor metrics.
 void mf_engine_get_stats(mf_engine *e, mf_stats *st);
 
+// Enable or disable live shared-memory IPC synchronization with MacFrame.app.
+void mf_engine_enable_ipc(mf_engine *e, int enable);
+
 // Direct pair interpolation for evaluation/benchmarking.
 // If out_flow_xy is non-NULL, writes width*height*2 floats (dx, dy in pixels from f0 to f1).
 int mf_engine_interpolate_pair(mf_engine *e,
@@ -113,6 +116,7 @@ typedef int (*mf_engine_pull_fn)(mf_engine *, CVPixelBufferRef *, double *);
 typedef int (*mf_engine_flush_fn)(mf_engine *);
 typedef void (*mf_engine_reset_fn)(mf_engine *);
 typedef void (*mf_engine_get_stats_fn)(mf_engine *, mf_stats *);
+typedef void (*mf_engine_enable_ipc_fn)(mf_engine *, int);
 typedef void (*mf_engine_destroy_fn)(mf_engine *);
 
 #ifdef __cplusplus

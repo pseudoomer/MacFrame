@@ -31,6 +31,20 @@ void Governor::reset() {
     under_budget_streak_ = 0;
 }
 
+void Governor::set_params(float quality_ceiling, bool adaptive) {
+    int new_max = quality_to_tier(quality_ceiling);
+    if (new_max != max_tier_) {
+        max_tier_ = new_max;
+        if (!adaptive || current_tier_ > max_tier_) {
+            current_tier_ = max_tier_;
+        }
+    }
+    adaptive_ = adaptive;
+    if (!adaptive_) {
+        current_tier_ = max_tier_;
+    }
+}
+
 void Governor::record_gpu_time_ms(double ms) {
     if (ms < 0.0) ms = 0.0;
     samples_[head_] = ms;

@@ -94,7 +94,31 @@ typedef int        (*mf_engine_pull_fn)(mf_engine *, CVPixelBufferRef *, double 
 typedef int        (*mf_engine_flush_fn)(mf_engine *);
 typedef void       (*mf_engine_reset_fn)(mf_engine *);
 typedef void       (*mf_engine_get_stats_fn)(mf_engine *, mf_stats *);
+typedef void       (*mf_engine_enable_ipc_fn)(mf_engine *, int);
 typedef void       (*mf_engine_destroy_fn)(mf_engine *);
+
+typedef struct mf_ipc_state {
+    uint32_t magic;
+    uint32_t version;
+    uint64_t config_seq;
+    int32_t  enabled;
+    int32_t  fps_mode;
+    double   max_fps_cap;
+    int32_t  preset;
+    int32_t  backend;
+    float    quality;
+    float    artifact_guard;
+    float    smoothness;
+    int32_t  scene_detect;
+    int32_t  dedup;
+    int32_t  static_lock;
+    int32_t  letterbox_guard;
+    int32_t  governor;
+    int32_t  debug_osd;
+} mf_ipc_state;
+
+typedef mf_ipc_state *(*mf_ipc_open_fn)(void);
+typedef void          (*mf_ipc_close_fn)(mf_ipc_state *);
 
 typedef struct MacFrameContext {
     const AVClass *class;
@@ -123,9 +147,13 @@ typedef struct MacFrameContext {
     mf_engine_flush_fn        fn_flush;
     mf_engine_reset_fn        fn_reset;
     mf_engine_get_stats_fn    fn_get_stats;
+    mf_engine_enable_ipc_fn   fn_enable_ipc;
     mf_engine_destroy_fn      fn_destroy;
+    mf_ipc_open_fn            fn_ipc_open;
+    mf_ipc_close_fn           fn_ipc_close;
 
-    mf_engine *engine;
+    mf_engine    *engine;
+    mf_ipc_state *ipc_state;
     bool       passthrough_fallback;
     bool       eof;
     int        eof_status;
@@ -225,7 +253,10 @@ static bool load_engine_dylib(AVFilterContext *avctx, MacFrameContext *s)
     LOAD_SYM(fn_flush,        mf_engine_flush);
     LOAD_SYM(fn_reset,        mf_engine_reset);
     LOAD_SYM(fn_get_stats,    mf_engine_get_stats);
+    LOAD_SYM(fn_enable_ipc,   mf_engine_enable_ipc);
     LOAD_SYM(fn_destroy,      mf_engine_destroy);
+    LOAD_SYM(fn_ipc_open,     mf_ipc_open);
+    LOAD_SYM(fn_ipc_close,    mf_ipc_close);
 #undef LOAD_SYM
 
     return true;
@@ -241,6 +272,8 @@ static av_cold int macframe_init(AVFilterContext *avctx)
 
     if (!load_engine_dylib(avctx, s)) {
         s->passthrough_fallback = true;
+    } else if (s->fn_ipc_open) {
+        s->ipc_state = s->fn_ipc_open();
     }
     return 0;
 }
@@ -248,6 +281,10 @@ static av_cold int macframe_init(AVFilterContext *avctx)
 static av_cold void macframe_uninit(AVFilterContext *avctx)
 {
     MacFrameContext *s = avctx->priv;
+    if (s->ipc_state && s->fn_ipc_close) {
+        s->fn_ipc_close(s->ipc_state);
+        s->ipc_state = NULL;
+    }
     if (s->engine && s->fn_destroy) {
         mf_stats st;
         if (s->fn_get_stats) {
@@ -288,6 +325,16 @@ static int macframe_config_output(AVFilterLink *outlink)
                     ? av_q2d(inlink->frame_rate)
                     : 24.0;
     target_fps = (s->fps > 1.0) ? s->fps : 120.0;
+    if (s->ipc_state && s->ipc_state->max_fps_cap >= 24.0) {
+        double cap = s->ipc_state->max_fps_cap;
+        if (s->ipc_state->fps_mode == 1) {
+            target_fps = cap;
+        } else if (s->ipc_state->fps_mode == 2) {
+            target_fps = FFMIN(s->in_fps * 2.0, cap);
+        } else {
+            target_fps = FFMIN(target_fps, cap);
+        }
+    }
 
     outlink->frame_rate = av_d2q(target_fps, 100000);
     outlink->time_base  = av_inv_q(outlink->frame_rate);
@@ -363,6 +410,9 @@ static int macframe_config_output(AVFilterLink *outlink)
                    errbuf);
             s->passthrough_fallback = true;
         } else {
+            if (s->fn_enable_ipc) {
+                s->fn_enable_ipc(s->engine, 1);
+            }
             av_log(avctx, AV_LOG_INFO,
                    "MacFrame active: %dx%d %.2f->%.2ffps preset=%s backend=%s\n",
                    cfg.width, cfg.height, cfg.in_fps, cfg.out_fps,
@@ -492,7 +542,7 @@ static int macframe_activate(AVFilterContext *ctx)
 
     FF_FILTER_FORWARD_STATUS_BACK(outlink, inlink);
 
-    if (s->passthrough_fallback || !s->engine) {
+    if (s->passthrough_fallback || !s->engine || (s->ipc_state && !s->ipc_state->enabled)) {
         AVFrame *in = NULL;
         int status;
         int64_t pts;

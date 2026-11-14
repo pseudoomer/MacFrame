@@ -10,6 +10,9 @@ Designed as a zero-copy, lightweight, native alternative to SVP 4 Pro on macOS, 
 
 ## Key Features
 
+- **Standalone Native Control App (`MacFrame.app`) & Zero-Intrusion Native Fallback**:
+  - Dedicated SwiftUI + AppKit desktop control center (with main window + `MenuBarExtra` status bar item) to toggle frame interpolation on/off, choose **Frame Rate Caps (`60 / 90 / 120 / 144 / 240 fps`)** and **Target Modes**, adjust **Smoothness** and **Artifact Repair (`artifact_guard`)** sliders in real time without rebuilding the filter graph, and inspect live GPU telemetry.
+  - **Strict Native IINA Behavior When Disabled**: Turning off interpolation in `MacFrame.app` leaves IINA running 100% with the user's original settings (`hwdec`, `video-sync`, `interpolation`, and custom `vf` filters are preserved or restored, while `vf_macframe` immediately enters zero-overhead passthrough).
 - **100% Zero-Copy Apple Silicon Pipeline**: Reads VideoToolbox hardware-decoded `NV12` / `P010` (10-bit HDR) frames directly via `CVMetalTextureCache` and outputs `IOSurface`-backed hardware frames straight to IINA's renderer.
 - **Hybrid Dual Backends**:
   - **MF-Flow (Default)**: In-house Metal compute optical flow engine combining a 6-level Gaussian pyramid, 3D Recursive Search (3DRS), zero-mean + gradient-weighted patch matching, bilateral vector median filtering, and Dense Inverse Search (DIS) sub-pixel Lucas-Kanade refinement.

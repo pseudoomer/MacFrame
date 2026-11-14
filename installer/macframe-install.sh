@@ -70,5 +70,20 @@ cp -R "${ROOT_DIR}/iina-plugin/MacFrame.iinaplugin" "${PLUGIN_DST}"
 defaults write com.colliderli.iina iinaEnablePluginSystem -bool true 2>/dev/null || true
 echo "  [OK] Installed IINA plugin to ${PLUGIN_DST}"
 
+# 5. Install standalone MacFrame.app control center
+if [[ -d "${ROOT_DIR}/build/MacFrame.app" ]]; then
+    APP_DST_DIR="$(dirname "${TARGET_APP}")"
+    if [[ ! -w "${APP_DST_DIR}" ]]; then
+        APP_DST_DIR="${HOME}/Applications"
+        mkdir -p "${APP_DST_DIR}"
+    fi
+    rm -rf "${APP_DST_DIR}/MacFrame.app"
+    cp -R "${ROOT_DIR}/build/MacFrame.app" "${APP_DST_DIR}/MacFrame.app"
+    xattr -cr "${APP_DST_DIR}/MacFrame.app" 2>/dev/null || true
+    codesign --force --sign - "${APP_DST_DIR}/MacFrame.app/Contents/Frameworks/libmacframe.1.0.0.dylib"
+    codesign --force --sign - "${APP_DST_DIR}/MacFrame.app"
+    echo "  [OK] Installed standalone control app to ${APP_DST_DIR}/MacFrame.app"
+fi
+
 echo "=== MacFrame Installation Complete! ==="
-echo "Open IINA -> Plugin -> MacFrame (or press Cmd+Shift+M during playback)."
+echo "Launch MacFrame.app to control frame interpolation, frame rate cap, and repair features."

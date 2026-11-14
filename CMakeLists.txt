@@ -23,6 +23,7 @@ add_library(macframe SHARED
     engine/src/mf_timeline.cpp
     engine/src/mf_governor.cpp
     engine/src/mf_metal_context.mm
+    engine/src/mf_ipc.mm
     engine/src/mf_engine.mm
 )
 

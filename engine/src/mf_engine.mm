@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "macframe/macframe.h"
+#include "macframe/mf_ipc.h"
 #include "mf_governor.hpp"
 #include "mf_metal_context.hpp"
 #include "mf_timeline.hpp"
+
+#include <unistd.h>
 
 #import <CoreMedia/CoreMedia.h>
 #import <CoreVideo/CoreVideo.h>
@@ -156,6 +159,10 @@ struct mf_engine {
     VTFrameProcessor *vt_processor = nil;
     bool vt_supported = false;
 
+    // Live shared-memory IPC with MacFrame.app
+    mf_ipc_state *ipc_state = nullptr;
+    uint64_t last_ipc_seq = 0;
+
     // Cached active pair state so multiple phases in the same span reuse computed flow!
     uint64_t prepared_f0_id = UINT64_MAX;
     uint64_t prepared_f1_id = UINT64_MAX;
@@ -180,6 +187,10 @@ struct mf_engine {
 
     ~mf_engine() {
         @autoreleasepool {
+            if (ipc_state) {
+                mf_ipc_close(ipc_state);
+                ipc_state = nullptr;
+            }
             if (vt_processor) {
                 if (@available(macOS 15.4, *)) {
                     [vt_processor endSession];
@@ -244,25 +255,23 @@ struct mf_engine {
 
         clear_state_textures();
 
-        // Initialize VTFrameRateConversion if requested or AUTO
-        if (cfg.backend == MF_BACKEND_VT_FRC || cfg.backend == MF_BACKEND_AUTO) {
-            if (@available(macOS 15.4, *)) {
-                if ([VTFrameRateConversionConfiguration isSupported]) {
-                    VTFrameRateConversionConfiguration *vt_cfg =
-                        [[VTFrameRateConversionConfiguration alloc]
-                            initWithFrameWidth:cfg.width
-                                   frameHeight:cfg.height
-                            usePrecomputedFlow:NO
-                         qualityPrioritization:VTFrameRateConversionConfigurationQualityPrioritizationNormal
-                                      revision:VTFrameRateConversionConfigurationRevision1];
-                    if (vt_cfg) {
-                        VTFrameProcessor *proc = [[VTFrameProcessor alloc] init];
-                        NSError *vt_err = nil;
-                        if ([proc startSessionWithConfiguration:vt_cfg error:&vt_err]) {
-                            vt_processor = proc;
-                            vt_supported = true;
-                            rgha_pool = create_pool(cfg.width, cfg.height, kCVPixelFormatType_64RGBAHalf);
-                        }
+        // Initialize VTFrameRateConversion so mid-playback backend switching in MacFrame.app is instant
+        if (@available(macOS 15.4, *)) {
+            if ([VTFrameRateConversionConfiguration isSupported]) {
+                VTFrameRateConversionConfiguration *vt_cfg =
+                    [[VTFrameRateConversionConfiguration alloc]
+                        initWithFrameWidth:cfg.width
+                               frameHeight:cfg.height
+                        usePrecomputedFlow:NO
+                     qualityPrioritization:VTFrameRateConversionConfigurationQualityPrioritizationNormal
+                                  revision:VTFrameRateConversionConfigurationRevision1];
+                if (vt_cfg) {
+                    VTFrameProcessor *proc = [[VTFrameProcessor alloc] init];
+                    NSError *vt_err = nil;
+                    if ([proc startSessionWithConfiguration:vt_cfg error:&vt_err]) {
+                        vt_processor = proc;
+                        vt_supported = true;
+                        rgha_pool = create_pool(cfg.width, cfg.height, kCVPixelFormatType_64RGBAHalf);
                     }
                 }
             }
@@ -802,6 +811,52 @@ struct mf_engine {
             frame_store.pop_front();
         }
     }
+
+    void sync_from_ipc() {
+        if (!ipc_state || ipc_state->magic != MF_IPC_MAGIC) return;
+        uint64_t seq = ipc_state->config_seq;
+        if (seq == last_ipc_seq) return;
+        last_ipc_seq = seq;
+
+        cfg.preset          = static_cast<mf_preset>(ipc_state->preset);
+        cfg.backend         = static_cast<mf_backend>(ipc_state->backend);
+        cfg.quality         = std::clamp(ipc_state->quality, 0.0f, 1.0f);
+        cfg.artifact_guard  = std::clamp(ipc_state->artifact_guard, 0.0f, 1.0f);
+        cfg.smoothness      = std::clamp(ipc_state->smoothness, 0.0f, 1.0f);
+        cfg.scene_detect    = ipc_state->scene_detect;
+        cfg.dedup           = ipc_state->dedup;
+        cfg.static_lock     = ipc_state->static_lock;
+        cfg.letterbox_guard = ipc_state->letterbox_guard;
+        cfg.governor        = ipc_state->governor;
+        cfg.debug_osd       = ipc_state->debug_osd;
+
+        if (cfg.backend == MF_BACKEND_VT_FRC && vt_supported) {
+            stats.active_backend = MF_BACKEND_VT_FRC;
+        } else if (cfg.backend == MF_BACKEND_BLEND) {
+            stats.active_backend = MF_BACKEND_BLEND;
+        } else {
+            stats.active_backend = MF_BACKEND_MFLOW;
+        }
+
+        timeline.set_params(cfg.dedup != 0, cfg.scene_detect != 0, cfg.smoothness);
+        governor.set_params(cfg.quality, cfg.governor != 0);
+        stats.current_tier = governor.current_tier();
+    }
+
+    void publish_to_ipc() {
+        if (!ipc_state || ipc_state->magic != MF_IPC_MAGIC) return;
+        stats.scene_cuts   = timeline.scene_cuts();
+        stats.dedup_drops  = timeline.dedup_drops();
+        stats.current_tier = governor.current_tier();
+
+        ipc_state->heartbeat_ms = mf_ipc_now_ms();
+        ipc_state->active_pid   = getpid();
+        ipc_state->video_width  = cfg.width;
+        ipc_state->video_height = cfg.height;
+        ipc_state->source_fps   = cfg.in_fps;
+        ipc_state->output_fps   = cfg.out_fps;
+        ipc_state->stats        = stats;
+    }
 };
 
 extern "C" {
@@ -866,6 +921,7 @@ mf_engine *mf_engine_create(const mf_config *cfg, char *err, size_t errlen) {
 int mf_engine_push(mf_engine *e, CVPixelBufferRef src, double pts) {
     @autoreleasepool {
         if (!e || !src) return MF_ERR;
+        e->sync_from_ipc();
         auto frame = e->create_cached_frame(src, pts);
         if (!frame) return MF_ERR;
 
@@ -916,6 +972,7 @@ int mf_engine_pull(mf_engine *e, CVPixelBufferRef *out_buf, double *out_pts) {
 
         e->stats.frames_out++;
         e->gc_old_frames(task.f0_id);
+        e->publish_to_ipc();
         return MF_OK;
     }
 }
@@ -942,6 +999,19 @@ void mf_engine_get_stats(mf_engine *e, mf_stats *st) {
     e->stats.dedup_drops = e->timeline.dedup_drops();
     e->stats.current_tier = e->governor.current_tier();
     *st = e->stats;
+}
+
+void mf_engine_enable_ipc(mf_engine *e, int enable) {
+    if (!e) return;
+    if (enable && !e->ipc_state) {
+        e->ipc_state = mf_ipc_open();
+        e->last_ipc_seq = 0;
+        e->sync_from_ipc();
+        e->publish_to_ipc();
+    } else if (!enable && e->ipc_state) {
+        mf_ipc_close(e->ipc_state);
+        e->ipc_state = nullptr;
+    }
 }
 
 int mf_engine_interpolate_pair(mf_engine *e,

@@ -21,6 +21,12 @@ void Timeline::reset() {
     ready_.clear();
 }
 
+void Timeline::set_params(bool dedup_enabled, bool scene_detect_enabled, float smoothness) {
+    dedup_enabled_ = dedup_enabled;
+    scene_detect_enabled_ = scene_detect_enabled;
+    smoothness_ = std::clamp(smoothness, 0.0f, 1.0f);
+}
+
 float Timeline::shape_phase(float t, float smoothness) {
     t = std::clamp(t, 0.0f, 1.0f);
     smoothness = std::clamp(smoothness, 0.0f, 1.0f);

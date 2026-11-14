@@ -18,6 +18,7 @@
    - Installs `libmacframe.dylib` and the patched universal `libavfilter.10.dylib` into `IINA.app/Contents/Frameworks/`.
    - Ad-hoc signs the updated binaries so macOS Gatekeeper / launch validation succeeds.
    - Installs `io.github.pseudoomer.macframe.iinaplugin` into `~/Library/Application Support/com.colliderli.iina/plugins/`.
+   - Installs the standalone **`MacFrame.app`** control center into `/Applications/MacFrame.app` (or `~/Applications/MacFrame.app`). You can also install or restore IINA directly from the bottom toolbar inside `MacFrame.app`.
 
 ## Uninstalling
 

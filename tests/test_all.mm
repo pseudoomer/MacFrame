@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "macframe/macframe.h"
+#include "macframe/mf_ipc.h"
 #include "mf_governor.hpp"
 #include "mf_timeline.hpp"
 
@@ -249,10 +250,64 @@ static int test_engine_gpu() {
     return 0;
 }
 
+static int test_ipc_sync() {
+    printf("[4/4] Testing Shared-Memory IPC & Live Engine Config Sync...\n");
+    mf_ipc_state *ipc = mf_ipc_open();
+    REQUIRE(ipc != nullptr);
+    REQUIRE(ipc->magic == MF_IPC_MAGIC);
+    REQUIRE(ipc->version == MF_IPC_VERSION);
+
+    // Save state
+    mf_ipc_state saved = *ipc;
+
+    ipc->enabled = 1;
+    ipc->max_fps_cap = 90.0;
+    ipc->smoothness = 0.75f;
+    ipc->artifact_guard = 0.85f;
+    ipc->config_seq++;
+    mf_ipc_write_plugin_json(ipc);
+
+    mf_config cfg;
+    mf_config_init_default(&cfg, MF_PRESET_FILM);
+    cfg.width = 320;
+    cfg.height = 180;
+    mf_engine *eng = mf_engine_create(&cfg, nullptr, 0);
+    REQUIRE(eng != nullptr);
+    mf_engine_enable_ipc(eng, 1);
+
+    CVPixelBufferRef f0 = make_nv12(320, 180);
+    CVPixelBufferRef f1 = make_nv12(320, 180);
+    draw_shifted_pattern(f0, 0.0f, 0.0f);
+    draw_shifted_pattern(f1, 2.0f, 0.0f);
+
+    CVPixelBufferRef out = nullptr;
+    REQUIRE(mf_engine_interpolate_pair(eng, f0, f1, 0.5f, &out, nullptr) == MF_OK);
+    CVPixelBufferRelease(out);
+
+    REQUIRE(ipc->active_pid > 0);
+    REQUIRE(ipc->video_width == 320);
+    REQUIRE(ipc->video_height == 180);
+    REQUIRE(ipc->heartbeat_ms > 0);
+
+    mf_engine_destroy(eng);
+    CVPixelBufferRelease(f0);
+    CVPixelBufferRelease(f1);
+
+    // Restore clean defaults
+    *ipc = saved;
+    ipc->enabled = 1;
+    ipc->max_fps_cap = 120.0;
+    ipc->config_seq++;
+    mf_ipc_write_plugin_json(ipc);
+    mf_ipc_close(ipc);
+    return 0;
+}
+
 int main() {
     if (test_timeline_unit() != 0) return 1;
     if (test_governor_unit() != 0) return 1;
     if (test_engine_gpu() != 0) return 1;
+    if (test_ipc_sync() != 0) return 1;
     printf("ALL TESTS PASSED.\n");
     return 0;
 }
