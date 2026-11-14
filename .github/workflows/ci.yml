@@ -1,0 +1,21 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build tools
+        run: brew install cmake ninja
+      - name: Build MacFrame Engine & Tools
+        run: ./scripts/build-engine.sh
+      - name: Run Unit & GPU Regression Tests
+        run: ctest --test-dir build --output-on-failure -V
+      - name: Run Synthetic Ground-Truth Benchmark
+        run: ./build/mfbench synth
