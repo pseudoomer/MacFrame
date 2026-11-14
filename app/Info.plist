@@ -13,7 +13,9 @@
     <key>CFBundleName</key>
     <string>MacFrame</string>
     <key>CFBundleDisplayName</key>
-    <string>MacFrame Control Center</string>
+    <string>MacFrame</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>

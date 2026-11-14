@@ -19,6 +19,10 @@ mkdir -p "${STAGE_BUNDLE}/Contents/Frameworks"
 mkdir -p "${STAGE_BUNDLE}/Contents/Resources"
 
 cp "${ROOT_DIR}/app/Info.plist" "${STAGE_BUNDLE}/Contents/Info.plist"
+if [[ ! -f "${ROOT_DIR}/app/Resources/AppIcon.icns" ]]; then
+    swift "${ROOT_DIR}/tools/make-icon/make_icon.swift" "${ROOT_DIR}/app/Resources/AppIcon.icns" "${ROOT_DIR}/docs/images/icon-1024.png"
+fi
+cp "${ROOT_DIR}/app/Resources/AppIcon.icns" "${STAGE_BUNDLE}/Contents/Resources/AppIcon.icns"
 cp "${BUILD_DIR}/libmacframe.1.0.0.dylib" "${STAGE_BUNDLE}/Contents/Frameworks/libmacframe.1.0.0.dylib"
 ln -sf "libmacframe.1.0.0.dylib" "${STAGE_BUNDLE}/Contents/Frameworks/libmacframe.1.dylib"
 ln -sf "libmacframe.1.dylib" "${STAGE_BUNDLE}/Contents/Frameworks/libmacframe.dylib"
