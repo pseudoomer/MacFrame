@@ -1094,6 +1094,7 @@ final class MacFrameViewModel: ObservableObject {
 final class FastTipNSView: NSView {
     var tipText: String = ""
     var spaceName: String = ""
+    var targetRect: CGRect = .zero
     weak var vm: MacFrameViewModel?
     private var trackingArea: NSTrackingArea?
     private var workItem: DispatchWorkItem?
@@ -1123,18 +1124,30 @@ final class FastTipNSView: NSView {
         let space = spaceName
         guard !text.isEmpty else { return }
         let item = DispatchWorkItem { [weak self] in
-            guard let self = self, let win = self.window, let contentView = win.contentView else { return }
-            let rectInWin = self.convert(self.bounds, to: nil)
-            let winH = contentView.bounds.height
-            let topLeftRect = CGRect(
-                x: rectInWin.minX,
-                y: winH - rectInWin.maxY,
-                width: rectInWin.width,
-                height: rectInWin.height
-            )
+            guard let self = self else { return }
+            // Compute exact rect in the root NSHostingView (top-left origin)
+            var rootView: NSView = self
+            while let sv = rootView.superview {
+                rootView = sv
+                if String(describing: type(of: rootView)).contains("NSHostingView") {
+                    break
+                }
+            }
+            let r = self.convert(self.bounds, to: rootView)
+            let finalRect: CGRect
+            if rootView.isFlipped {
+                finalRect = r
+            } else {
+                finalRect = CGRect(
+                    x: r.minX,
+                    y: rootView.bounds.height - r.maxY,
+                    width: r.width,
+                    height: r.height
+                )
+            }
             Task { @MainActor in
                 withAnimation(.easeOut(duration: 0.1)) {
-                    self.vm?.activeTip = HoverTip(text: text, rect: topLeftRect, space: space)
+                    self.vm?.activeTip = HoverTip(text: text, rect: finalRect, space: space)
                 }
             }
         }
@@ -1159,12 +1172,14 @@ final class FastTipNSView: NSView {
 struct FastTipRepresentable: NSViewRepresentable {
     let text: String
     let space: String
+    let rect: CGRect
     let vm: MacFrameViewModel
 
     func makeNSView(context: Context) -> FastTipNSView {
         let v = FastTipNSView()
         v.tipText = text
         v.spaceName = space
+        v.targetRect = rect
         v.vm = vm
         return v
     }
@@ -1172,6 +1187,9 @@ struct FastTipRepresentable: NSViewRepresentable {
     func updateNSView(_ nsView: FastTipNSView, context: Context) {
         nsView.tipText = text
         nsView.spaceName = space
+        if rect.width > 0 {
+            nsView.targetRect = rect
+        }
         nsView.vm = vm
     }
 }
@@ -1179,34 +1197,39 @@ struct FastTipRepresentable: NSViewRepresentable {
 struct FloatingTipBanner: View {
     let tip: HoverTip?
     let space: String
-    let containerWidth: CGFloat
+    let containerSize: CGSize
 
     var body: some View {
         if let tip = tip, tip.space == space {
-            let halfW: CGFloat = min(CGFloat(tip.text.count) * 6.5 + 24.0, containerWidth * 0.46)
-            let clampedX = min(max(tip.rect.midX, halfW + 12), containerWidth - halfW - 12)
-            let placeBelow = tip.rect.minY < 46
-            let targetY = placeBelow ? (tip.rect.maxY + 20) : (tip.rect.minY - 18)
+            // Place below the hovered control by default; only flip above if right at the bottom edge of the window
+            let nearBottomEdge = (tip.rect.maxY + 44) > containerSize.height
+            let topY = nearBottomEdge ? max(8, tip.rect.minY - 36) : (tip.rect.maxY + 7)
+            let clampedCenterX = min(max(tip.rect.midX, 140), containerSize.width - 140)
 
-            Text(tip.text)
-                .font(.system(size: 11.5, weight: .medium))
-                .foregroundColor(.white)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .fill(Color(NSColor(calibratedWhite: 0.11, alpha: 0.96)))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(Color.cyan.opacity(0.45), lineWidth: 1)
-                )
-                .shadow(color: Color.black.opacity(0.35), radius: 8, x: 0, y: 4)
-                .frame(maxWidth: containerWidth - 24)
-                .position(x: clampedX, y: targetY)
-                .allowsHitTesting(false)
-                .transition(.opacity)
+            VStack(spacing: 0) {
+                Text(tip.text)
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundColor(.white)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .fill(Color(NSColor(calibratedWhite: 0.11, alpha: 0.96)))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .stroke(Color.cyan.opacity(0.45), lineWidth: 1)
+                    )
+                    .shadow(color: Color.black.opacity(0.38), radius: 8, x: 0, y: 4)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: min(containerSize.width - 24, 460))
+                Spacer(minLength: 0)
+            }
+            .frame(width: min(containerSize.width - 24, 460), height: 80, alignment: .top)
+            .position(x: clampedCenterX, y: topY + 40)
+            .allowsHitTesting(false)
+            .transition(.opacity)
         }
     }
 }
@@ -1214,8 +1237,15 @@ struct FloatingTipBanner: View {
 extension View {
     func fastTip(_ text: String, space: String = "main", vm: MacFrameViewModel) -> some View {
         self.overlay(
-            FastTipRepresentable(text: text, space: space, vm: vm)
-                .allowsHitTesting(false)
+            GeometryReader { geo in
+                FastTipRepresentable(
+                    text: text,
+                    space: space,
+                    rect: geo.frame(in: .named(space)),
+                    vm: vm
+                )
+            }
+            .allowsHitTesting(false)
         )
     }
 
@@ -1434,7 +1464,13 @@ struct MenuBarDashboardView: View {
         }
         .padding(18)
         .frame(width: 380)
-        .overlay(FloatingTipBanner(tip: vm.activeTip, space: "dash", containerWidth: 380))
+        .coordinateSpace(name: "dash")
+        .overlay(
+            GeometryReader { geo in
+                FloatingTipBanner(tip: vm.activeTip, space: "dash", containerSize: geo.size)
+            }
+            .allowsHitTesting(false)
+        )
     }
 
     private func statusPill(t: L10n) -> some View {
@@ -1533,7 +1569,13 @@ struct ControlCenterView: View {
         }
         .padding(24)
         .frame(width: 680)
-        .overlay(FloatingTipBanner(tip: vm.activeTip, space: "main", containerWidth: 680))
+        .coordinateSpace(name: "main")
+        .overlay(
+            GeometryReader { geo in
+                FloatingTipBanner(tip: vm.activeTip, space: "main", containerSize: geo.size)
+            }
+            .allowsHitTesting(false)
+        )
     }
 
     // 1. Header Card
@@ -2024,6 +2066,29 @@ struct ControlCenterView: View {
 // MARK: - Snapshot Renderer for Multi-Language UI Verification
 
 @MainActor
+func findFastTipRect(in view: NSView, for text: String, rootView: NSView) -> CGRect? {
+    if let tipView = view as? FastTipNSView, tipView.tipText == text {
+        let r = tipView.convert(tipView.bounds, to: rootView)
+        if rootView.isFlipped {
+            return r
+        } else {
+            return CGRect(
+                x: r.minX,
+                y: rootView.bounds.height - r.maxY,
+                width: r.width,
+                height: r.height
+            )
+        }
+    }
+    for sub in view.subviews {
+        if let found = findFastTipRect(in: sub, for: text, rootView: rootView) {
+            return found
+        }
+    }
+    return nil
+}
+
+@MainActor
 func renderHostingViewToPNG<V: View>(_ view: V, path: String) {
     let hosting = NSHostingView(rootView: view)
     hosting.appearance = NSAppearance(named: .darkAqua)
@@ -2071,13 +2136,19 @@ func dumpUISnapshots(to dir: String) {
         renderHostingViewToPNG(dashView, path: "\(dir)/dash_\(lang.rawValue).png")
     }
 
-    // Also render a preview showing the 70ms instant tooltip bubble
+    // Also render a preview showing the 70ms instant tooltip bubble positioned BELOW the "动漫" preset button using real FastTipNSView coordinates
     vm.selectedLanguage = .zhHans
-    vm.activeTip = HoverTip(
-        text: vm.t.presetAnimeTip,
-        rect: CGRect(x: 200, y: 400, width: 140, height: 36),
-        space: "main"
+    vm.activeTip = nil
+    let probeHosting = NSHostingView(
+        rootView: ControlCenterView(vm: vm)
+            .background(Color(NSColor.windowBackgroundColor))
+            .environment(\.colorScheme, .dark)
     )
+    probeHosting.frame = NSRect(origin: .zero, size: probeHosting.fittingSize)
+    probeHosting.layoutSubtreeIfNeeded()
+    if let realRect = findFastTipRect(in: probeHosting, for: vm.t.presetAnimeTip, rootView: probeHosting) {
+        vm.activeTip = HoverTip(text: vm.t.presetAnimeTip, rect: realRect, space: "main")
+    }
     let tipPreview = ControlCenterView(vm: vm)
         .background(Color(NSColor.windowBackgroundColor))
         .environment(\.colorScheme, .dark)
