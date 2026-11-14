@@ -824,11 +824,18 @@ struct L10n {
     }
 }
 
+struct HoverTip: Equatable {
+    let text: String
+    let rect: CGRect
+    let space: String
+}
+
 // MARK: - View Model
 
 @MainActor
 final class MacFrameViewModel: ObservableObject {
     @AppStorage("macframe.language") var languageRaw: String = AppLanguage.system.rawValue
+    @Published var activeTip: HoverTip? = nil
 
     var selectedLanguage: AppLanguage {
         get { AppLanguage(rawValue: languageRaw) ?? .system }
@@ -1082,9 +1089,136 @@ final class MacFrameViewModel: ObservableObject {
     }
 }
 
-// MARK: - App Icon & Card Surface Styling
+// MARK: - Instant 70ms Hover Tooltip Engine & Card Surface Styling
+
+final class FastTipNSView: NSView {
+    var tipText: String = ""
+    var spaceName: String = ""
+    weak var vm: MacFrameViewModel?
+    private var trackingArea: NSTrackingArea?
+    private var workItem: DispatchWorkItem?
+
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        return nil
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let existing = trackingArea {
+            removeTrackingArea(existing)
+        }
+        let area = NSTrackingArea(
+            rect: .zero,
+            options: [.mouseEnteredAndExited, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        trackingArea = area
+    }
+
+    override func mouseEntered(with event: NSEvent) {
+        workItem?.cancel()
+        let text = tipText
+        let space = spaceName
+        guard !text.isEmpty else { return }
+        let item = DispatchWorkItem { [weak self] in
+            guard let self = self, let win = self.window, let contentView = win.contentView else { return }
+            let rectInWin = self.convert(self.bounds, to: nil)
+            let winH = contentView.bounds.height
+            let topLeftRect = CGRect(
+                x: rectInWin.minX,
+                y: winH - rectInWin.maxY,
+                width: rectInWin.width,
+                height: rectInWin.height
+            )
+            Task { @MainActor in
+                withAnimation(.easeOut(duration: 0.1)) {
+                    self.vm?.activeTip = HoverTip(text: text, rect: topLeftRect, space: space)
+                }
+            }
+        }
+        workItem = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.07, execute: item)
+    }
+
+    override func mouseExited(with event: NSEvent) {
+        workItem?.cancel()
+        workItem = nil
+        let text = tipText
+        Task { @MainActor in
+            if self.vm?.activeTip?.text == text {
+                withAnimation(.easeOut(duration: 0.08)) {
+                    self.vm?.activeTip = nil
+                }
+            }
+        }
+    }
+}
+
+struct FastTipRepresentable: NSViewRepresentable {
+    let text: String
+    let space: String
+    let vm: MacFrameViewModel
+
+    func makeNSView(context: Context) -> FastTipNSView {
+        let v = FastTipNSView()
+        v.tipText = text
+        v.spaceName = space
+        v.vm = vm
+        return v
+    }
+
+    func updateNSView(_ nsView: FastTipNSView, context: Context) {
+        nsView.tipText = text
+        nsView.spaceName = space
+        nsView.vm = vm
+    }
+}
+
+struct FloatingTipBanner: View {
+    let tip: HoverTip?
+    let space: String
+    let containerWidth: CGFloat
+
+    var body: some View {
+        if let tip = tip, tip.space == space {
+            let halfW: CGFloat = min(CGFloat(tip.text.count) * 6.5 + 24.0, containerWidth * 0.46)
+            let clampedX = min(max(tip.rect.midX, halfW + 12), containerWidth - halfW - 12)
+            let placeBelow = tip.rect.minY < 46
+            let targetY = placeBelow ? (tip.rect.maxY + 20) : (tip.rect.minY - 18)
+
+            Text(tip.text)
+                .font(.system(size: 11.5, weight: .medium))
+                .foregroundColor(.white)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(Color(NSColor(calibratedWhite: 0.11, alpha: 0.96)))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color.cyan.opacity(0.45), lineWidth: 1)
+                )
+                .shadow(color: Color.black.opacity(0.35), radius: 8, x: 0, y: 4)
+                .frame(maxWidth: containerWidth - 24)
+                .position(x: clampedX, y: targetY)
+                .allowsHitTesting(false)
+                .transition(.opacity)
+        }
+    }
+}
 
 extension View {
+    func fastTip(_ text: String, space: String = "main", vm: MacFrameViewModel) -> some View {
+        self.overlay(
+            FastTipRepresentable(text: text, space: space, vm: vm)
+                .allowsHitTesting(false)
+        )
+    }
+
     func cardSurface(cornerRadius: CGFloat = 12) -> some View {
         self
             .background(
@@ -1182,7 +1316,7 @@ struct MenuBarDashboardView: View {
                 ))
                 .toggleStyle(.switch)
                 .labelsHidden()
-                .help(t.masterToggleTip)
+                .fastTip(t.masterToggleTip, space: "dash", vm: vm)
             }
 
             // 2. 2x2 Telemetry Grid
@@ -1235,7 +1369,7 @@ struct MenuBarDashboardView: View {
                                 .cornerRadius(7)
                         }
                         .buttonStyle(.plain)
-                        .help("\(t.fpsCapLabel): \(Int(cap)) fps")
+                        .fastTip("\(t.fpsCapLabel): \(Int(cap)) fps", space: "dash", vm: vm)
                     }
                 }
             }
@@ -1281,7 +1415,7 @@ struct MenuBarDashboardView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
-                .help(t.btnOpenIina)
+                .fastTip(t.btnOpenIina, space: "dash", vm: vm)
 
                 Spacer()
 
@@ -1295,11 +1429,12 @@ struct MenuBarDashboardView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
-                .help(t.btnQuit)
+                .fastTip(t.btnQuit, space: "dash", vm: vm)
             }
         }
         .padding(18)
         .frame(width: 380)
+        .overlay(FloatingTipBanner(tip: vm.activeTip, space: "dash", containerWidth: 380))
     }
 
     private func statusPill(t: L10n) -> some View {
@@ -1353,7 +1488,7 @@ struct MenuBarDashboardView: View {
                 .cornerRadius(7)
         }
         .buttonStyle(.plain)
-        .help(tip)
+        .fastTip(tip, space: "dash", vm: vm)
     }
 
     private func languageMenu(t: L10n) -> some View {
@@ -1375,7 +1510,7 @@ struct MenuBarDashboardView: View {
         }
         .menuStyle(.borderlessButton)
         .frame(width: 28)
-        .help(t.langTip)
+        .fastTip(t.langTip, space: "dash", vm: vm)
     }
 }
 
@@ -1398,6 +1533,7 @@ struct ControlCenterView: View {
         }
         .padding(24)
         .frame(width: 680)
+        .overlay(FloatingTipBanner(tip: vm.activeTip, space: "main", containerWidth: 680))
     }
 
     // 1. Header Card
@@ -1469,7 +1605,7 @@ struct ControlCenterView: View {
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
-            .help(t.langTip)
+            .fastTip(t.langTip, space: "main", vm: vm)
 
             Toggle("", isOn: Binding(
                 get: { vm.enabled },
@@ -1481,7 +1617,7 @@ struct ControlCenterView: View {
             .toggleStyle(.switch)
             .labelsHidden()
             .scaleEffect(1.15)
-            .help(t.masterToggleTip)
+            .fastTip(t.masterToggleTip, space: "main", vm: vm)
         }
         .padding(16)
         .cardSurface(cornerRadius: 12)
@@ -1575,7 +1711,7 @@ struct ControlCenterView: View {
                                 .cornerRadius(6)
                         }
                         .buttonStyle(.plain)
-                        .help("\(t.fpsCapLabel): \(Int(cap)) fps")
+                        .fastTip("\(t.fpsCapLabel): \(Int(cap)) fps", space: "main", vm: vm)
                     }
                 }
 
@@ -1587,10 +1723,9 @@ struct ControlCenterView: View {
                             vm.syncToIPC()
                         }
                     ),
-                    in: 30...240,
-                    step: 1
+                    in: 30...240
                 )
-                .help(t.secFpsTip)
+                .fastTip(t.secFpsTip, space: "main", vm: vm)
 
                 Text("\(Int(vm.maxFpsCap)) fps")
                     .font(.system(size: 13, weight: .bold, design: .monospaced))
@@ -1620,7 +1755,7 @@ struct ControlCenterView: View {
                 .cornerRadius(6)
         }
         .buttonStyle(.plain)
-        .help(tip)
+        .fastTip(tip, space: "main", vm: vm)
     }
 
     // 4. Presets, Engine & Sliders Section (Full-Width Preset Cards + Full-Width Slider Rows)
@@ -1722,7 +1857,7 @@ struct ControlCenterView: View {
                 .cornerRadius(6)
         }
         .buttonStyle(.plain)
-        .help(tip)
+        .fastTip(tip, space: "main", vm: vm)
     }
 
     private func presetCardButton(id: Int32, icon: String, title: String, tip: String) -> some View {
@@ -1743,7 +1878,7 @@ struct ControlCenterView: View {
             .cornerRadius(8)
         }
         .buttonStyle(.plain)
-        .help(tip)
+        .fastTip(tip, space: "main", vm: vm)
     }
 
     private func fullWidthSliderRow(title: String, valueText: String, tip: String, value: Binding<Double>) -> some View {
@@ -1761,7 +1896,7 @@ struct ControlCenterView: View {
                 .fixedSize()
                 .frame(minWidth: 68, alignment: .trailing)
         }
-        .help(tip)
+        .fastTip(tip, space: "main", vm: vm)
     }
 
     // 5. Artifact Guards Section (2-Column Spacious Switch Grid)
@@ -1806,7 +1941,7 @@ struct ControlCenterView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
-        .help(tip)
+        .fastTip(tip, space: "main", vm: vm)
     }
 
     // 6. IINA Integration Footer Section (Spacious 2-Row Card)
@@ -1845,7 +1980,7 @@ struct ControlCenterView: View {
                         .controlSize(.small)
                         .labelsHidden()
                 }
-                .help(t.autoGuardTip)
+                .fastTip(t.autoGuardTip, space: "main", vm: vm)
             }
 
             Divider()
@@ -1858,7 +1993,7 @@ struct ControlCenterView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
                 .fixedSize()
-                .help(t.btnInjectTip)
+                .fastTip(t.btnInjectTip, space: "main", vm: vm)
 
                 Button(t.btnRestore) {
                     vm.runInstaller(install: false)
@@ -1866,7 +2001,7 @@ struct ControlCenterView: View {
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
                 .fixedSize()
-                .help(t.btnRestoreTip)
+                .fastTip(t.btnRestoreTip, space: "main", vm: vm)
 
                 Spacer()
 
@@ -1878,7 +2013,7 @@ struct ControlCenterView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
-                .help(t.btnOpenIina)
+                .fastTip(t.btnOpenIina, space: "main", vm: vm)
             }
         }
         .padding(16)
@@ -1935,6 +2070,19 @@ func dumpUISnapshots(to dir: String) {
             .environment(\.colorScheme, .dark)
         renderHostingViewToPNG(dashView, path: "\(dir)/dash_\(lang.rawValue).png")
     }
+
+    // Also render a preview showing the 70ms instant tooltip bubble
+    vm.selectedLanguage = .zhHans
+    vm.activeTip = HoverTip(
+        text: vm.t.presetAnimeTip,
+        rect: CGRect(x: 200, y: 400, width: 140, height: 36),
+        space: "main"
+    )
+    let tipPreview = ControlCenterView(vm: vm)
+        .background(Color(NSColor.windowBackgroundColor))
+        .environment(\.colorScheme, .dark)
+    renderHostingViewToPNG(tipPreview, path: "\(dir)/main_tip_preview.png")
+    vm.activeTip = nil
 }
 
 // MARK: - Application Entry Point
@@ -1944,6 +2092,8 @@ struct MacFrameControlApp: App {
     @StateObject private var vm = MacFrameViewModel()
 
     init() {
+        UserDefaults.standard.register(defaults: ["NSInitialToolTipDelay": 70])
+        UserDefaults.standard.set(70, forKey: "NSInitialToolTipDelay")
         let args = CommandLine.arguments
         if let idx = args.firstIndex(of: "--dump-snapshots"), idx + 1 < args.count {
             let outDir = args[idx + 1]
