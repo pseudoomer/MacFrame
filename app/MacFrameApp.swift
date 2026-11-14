@@ -45,9 +45,9 @@ enum AppLanguage: String, CaseIterable, Identifiable {
             case .ja:     return "システム設定"
             case .ko:     return "시스템 기본값"
             case .fr:     return "Système"
-            case .de:     return "Systemstandard"
+            case .de:     return "System"
             case .es:     return "Sistema"
-            default:      return "System Default"
+            default:      return "System"
             }
         case .zhHans: return "简体中文"
         case .zhHant: return "繁體中文"
@@ -101,6 +101,18 @@ struct L10n {
         default:      return "Off"
         }
     }
+    var headerSubOff: String {
+        switch lang {
+        case .zhHans: return "IINA 原生直通模式"
+        case .zhHant: return "IINA 原生直通模式"
+        case .ja:     return "IINA ネイティブ動作"
+        case .ko:     return "IINA 기본 설정 모드"
+        case .fr:     return "Mode natif IINA"
+        case .de:     return "IINA-Nativmodus"
+        case .es:     return "Modo nativo de IINA"
+        default:      return "IINA Native Passthrough"
+        }
+    }
     var masterToggleTip: String {
         switch lang {
         case .zhHans: return "开启或关闭实时补帧；关闭时 IINA 完全按原生设置运行"
@@ -117,8 +129,8 @@ struct L10n {
     // Telemetry Cards
     var metricFps: String {
         switch lang {
-        case .zhHans: return "帧率"
-        case .zhHant: return "幀率"
+        case .zhHans: return "实时帧率"
+        case .zhHant: return "即時幀率"
         case .ja:     return "フレームレート"
         case .ko:     return "프레임레이트"
         case .fr:     return "Cadence"
@@ -141,14 +153,14 @@ struct L10n {
     }
     var metricQuality: String {
         switch lang {
-        case .zhHans: return "画质与置信"
-        case .zhHant: return "畫質與置信"
+        case .zhHans: return "画质档位"
+        case .zhHant: return "畫質檔位"
         case .ja:     return "品質・信頼度"
         case .ko:     return "품질·신뢰도"
         case .fr:     return "Qualité"
         case .de:     return "Qualität"
         case .es:     return "Calidad"
-        default:      return "Quality"
+        default:      return "Quality Tier"
         }
     }
     var metricGuards: String {
@@ -156,7 +168,7 @@ struct L10n {
         case .zhHans: return "切镜 / 去重"
         case .zhHant: return "切鏡 / 去重"
         case .ja:     return "カット / 重複"
-        case .ko:     return "장면전환 / 중복"
+        case .ko:     return "전환 / 중복"
         case .fr:     return "Coupes / Dédup"
         case .de:     return "Schnitte / Dedup"
         case .es:     return "Cortes / Dedup"
@@ -165,28 +177,40 @@ struct L10n {
     }
     var idleSub: String {
         switch lang {
-        case .zhHans: return "等待播放"
-        case .zhHant: return "等待播放"
+        case .zhHans: return "等待播放视频"
+        case .zhHant: return "等待播放影片"
         case .ja:     return "再生待機中"
-        case .ko:     return "재생 대기"
+        case .ko:     return "재생 대기 중"
         case .fr:     return "En attente"
         case .de:     return "Warte auf Video"
         case .es:     return "Sin vídeo"
-        default:      return "Idle"
+        default:      return "Waiting for video"
+        }
+    }
+    var confidenceWord: String {
+        switch lang {
+        case .zhHans: return "置信度"
+        case .zhHant: return "置信度"
+        case .ja:     return "信頼度"
+        case .ko:     return "신뢰도"
+        case .fr:     return "Confiance"
+        case .de:     return "Konfidenz"
+        case .es:     return "Confianza"
+        default:      return "Confidence"
         }
     }
 
     // Frame Rate Section
     var secFps: String {
         switch lang {
-        case .zhHans: return "目标帧率"
-        case .zhHant: return "目標幀率"
-        case .ja:     return "目標フレームレート"
-        case .ko:     return "목표 프레임레이트"
+        case .zhHans: return "帧率策略"
+        case .zhHant: return "幀率策略"
+        case .ja:     return "フレームレート設定"
+        case .ko:     return "프레임레이트 설정"
         case .fr:     return "Cadence cible"
         case .de:     return "Zielbildrate"
-        case .es:     return "Tasa objetivo"
-        default:      return "Target FPS"
+        case .es:     return "Tasa de fotogramas"
+        default:      return "Frame Rate Strategy"
         }
     }
     var secFpsTip: String {
@@ -208,9 +232,9 @@ struct L10n {
         case .ja:     return "画面同期"
         case .ko:     return "화면 동기화"
         case .fr:     return "Écran"
-        case .de:     return "Bildschirm"
+        case .de:     return "Monitor"
         case .es:     return "Pantalla"
-        default:      return "Display"
+        default:      return "Display Sync"
         }
     }
     var modeFixed: String {
@@ -222,7 +246,7 @@ struct L10n {
         case .fr:     return "Fixe"
         case .de:     return "Fest"
         case .es:     return "Fijo"
-        default:      return "Fixed"
+        default:      return "Fixed Cap"
         }
     }
     var modeDouble: String {
@@ -230,37 +254,37 @@ struct L10n {
         case .zhHans: return "2x 倍帧"
         case .zhHant: return "2x 倍幀"
         case .ja:     return "2倍補間"
-        case .ko:     return "2배속 보간"
-        case .fr:     return "2x"
-        case .de:     return "2x"
-        case .es:     return "2x"
-        default:      return "2x"
+        case .ko:     return "2배속"
+        case .fr:     return "Double 2x"
+        case .de:     return "2x Modus"
+        case .es:     return "Doble 2x"
+        default:      return "2x Rate"
         }
     }
     var fpsCapLabel: String {
         switch lang {
-        case .zhHans: return "上限"
-        case .zhHant: return "上限"
-        case .ja:     return "上限"
-        case .ko:     return "상한"
-        case .fr:     return "Plafond"
-        case .de:     return "Limit"
-        case .es:     return "Límite"
-        default:      return "Cap"
+        case .zhHans: return "帧率上限"
+        case .zhHant: return "幀率上限"
+        case .ja:     return "上限 FPS"
+        case .ko:     return "최대 FPS"
+        case .fr:     return "Plafond FPS"
+        case .de:     return "FPS-Limit"
+        case .es:     return "Límite FPS"
+        default:      return "FPS Ceiling"
         }
     }
 
     // Presets & Backend
     var secPreset: String {
         switch lang {
-        case .zhHans: return "场景预设"
-        case .zhHant: return "場景預設"
-        case .ja:     return "プリセット"
-        case .ko:     return "프리셋"
-        case .fr:     return "Préréglages"
-        case .de:     return "Profile"
-        case .es:     return "Perfiles"
-        default:      return "Presets"
+        case .zhHans: return "场景预设与微调"
+        case .zhHant: return "場景預設與微調"
+        case .ja:     return "プリセットと調整"
+        case .ko:     return "프리셋 및 세부 조정"
+        case .fr:     return "Préréglages et finesse"
+        case .de:     return "Profile & Feinabstimmung"
+        case .es:     return "Perfiles y ajuste"
+        default:      return "Presets & Tuning"
         }
     }
     var presetFilm: String {
@@ -292,7 +316,7 @@ struct L10n {
         case .zhHans: return "动漫"
         case .zhHant: return "動漫"
         case .ja:     return "アニメ"
-        case .ko:     return "애니메이션"
+        case .ko:     return "애니"
         case .fr:     return "Anime"
         case .de:     return "Anime"
         case .es:     return "Anime"
@@ -319,7 +343,7 @@ struct L10n {
         case .ko:     return "스포츠"
         case .fr:     return "Sport"
         case .de:     return "Sport"
-        case .es:     return "Deportes"
+        case .es:     return "Deporte"
         default:      return "Sports"
         }
     }
@@ -340,7 +364,7 @@ struct L10n {
         case .zhHans: return "自定义"
         case .zhHant: return "自訂"
         case .ja:     return "カスタム"
-        case .ko:     return "사용자 지정"
+        case .ko:     return "커스텀"
         case .fr:     return "Perso"
         case .de:     return "Eigene"
         case .es:     return "Personal"
@@ -364,8 +388,8 @@ struct L10n {
         switch lang {
         case .zhHans: return "算法引擎"
         case .zhHant: return "演算法引擎"
-        case .ja:     return "エンジン"
-        case .ko:     return "알고리즘 엔진"
+        case .ja:     return "補間エンジン"
+        case .ko:     return "보간 엔진"
         case .fr:     return "Moteur"
         case .de:     return "Engine"
         case .es:     return "Motor"
@@ -398,28 +422,16 @@ struct L10n {
     }
 
     // Sliders Section
-    var secTuning: String {
-        switch lang {
-        case .zhHans: return "参数微调"
-        case .zhHant: return "參數微調"
-        case .ja:     return "詳細調整"
-        case .ko:     return "세부 조정"
-        case .fr:     return "Réglages"
-        case .de:     return "Feinabstimmung"
-        case .es:     return "Ajustes"
-        default:      return "Tuning"
-        }
-    }
     var sliderSmoothness: String {
         switch lang {
-        case .zhHans: return "平滑度"
-        case .zhHant: return "平滑度"
-        case .ja:     return "滑らかさ"
-        case .ko:     return "부드러움"
-        case .fr:     return "Fluidité"
-        case .de:     return "Glättung"
-        case .es:     return "Fluidez"
-        default:      return "Smoothness"
+        case .zhHans: return "运动平滑度"
+        case .zhHant: return "運動平滑度"
+        case .ja:     return "動きの滑らかさ"
+        case .ko:     return "움직임 부드러움"
+        case .fr:     return "Fluidité du mouvement"
+        case .de:     return "Bewegungsglättung"
+        case .es:     return "Fluidez de movimiento"
+        default:      return "Motion Smoothness"
         }
     }
     var sliderSmoothnessTip: String {
@@ -436,14 +448,14 @@ struct L10n {
     }
     var sliderRepair: String {
         switch lang {
-        case .zhHans: return "伪影修复"
-        case .zhHant: return "偽影修復"
-        case .ja:     return "破綻抑制"
-        case .ko:     return "아티팩트 억제"
-        case .fr:     return "Anti-artefacts"
+        case .zhHans: return "伪影修复强度"
+        case .zhHant: return "偽影修復強度"
+        case .ja:     return "アーティファクト抑制"
+        case .ko:     return "아티팩트 억제 강도"
+        case .fr:     return "Protection anti-halo"
         case .de:     return "Artefaktschutz"
-        case .es:     return "Antihalos"
-        default:      return "Artifact Guard"
+        case .es:     return "Supresión de halos"
+        default:      return "Artifact Suppression"
         }
     }
     var sliderRepairTip: String {
@@ -460,14 +472,14 @@ struct L10n {
     }
     var sliderQuality: String {
         switch lang {
-        case .zhHans: return "搜索精度"
-        case .zhHant: return "搜尋精度"
-        case .ja:     return "探索精度"
-        case .ko:     return "탐색 정밀도"
-        case .fr:     return "Précision"
+        case .zhHans: return "光流搜索精度"
+        case .zhHant: return "光流搜尋精度"
+        case .ja:     return "オプティカルフロー精度"
+        case .ko:     return "광학 흐름 탐색 정밀도"
+        case .fr:     return "Précision de recherche"
         case .de:     return "Suchpräzision"
-        case .es:     return "Precisión"
-        default:      return "Search Quality"
+        case .es:     return "Precisión de búsqueda"
+        default:      return "Optical Flow Precision"
         }
     }
     var sliderQualityTip: String {
@@ -488,12 +500,12 @@ struct L10n {
         switch lang {
         case .zhHans: return "专项防护"
         case .zhHant: return "專項防護"
-        case .ja:     return "保護機能"
-        case .ko:     return "보호 기능"
-        case .fr:     return "Protections"
+        case .ja:     return "アーティファクト保護"
+        case .ko:     return "아티팩트 보호 기능"
+        case .fr:     return "Protections visuelles"
         case .de:     return "Schutzfunktionen"
-        case .es:     return "Protecciones"
-        default:      return "Guards"
+        case .es:     return "Protecciones visuales"
+        default:      return "Artifact Guards"
         }
     }
     var guardScene: String {
@@ -502,10 +514,10 @@ struct L10n {
         case .zhHant: return "切鏡防鬼影"
         case .ja:     return "シーン切替保護"
         case .ko:     return "장면 전환 보호"
-        case .fr:     return "Anti-fantôme coupe"
-        case .de:     return "Szenenschnitt"
+        case .fr:     return "Coupure de scène"
+        case .de:     return "Szenenschnitt-Schutz"
         case .es:     return "Cambio de escena"
-        default:      return "Scene Cut"
+        default:      return "Scene Cut Guard"
         }
     }
     var guardSceneTip: String {
@@ -524,12 +536,12 @@ struct L10n {
         switch lang {
         case .zhHans: return "一拍二/三去重"
         case .zhHant: return "一拍二/三去重"
-        case .ja:     return "アニメ重複再構築"
-        case .ko:     return "애니 중복 재구성"
-        case .fr:     return "Dédup Anime 2s/3s"
-        case .de:     return "Anime-Dedup"
-        case .es:     return "Dedup Anime"
-        default:      return "Anime Dedup"
+        case .ja:     return "アニメ重複フレーム再構築"
+        case .ko:     return "애니 중복 프레임 재구성"
+        case .fr:     return "Déduplication Anime"
+        case .de:     return "Anime-Duplikatfilter"
+        case .es:     return "Deduplicación Anime"
+        default:      return "Anime 2s/3s Dedup"
         }
     }
     var guardDedupTip: String {
@@ -546,14 +558,14 @@ struct L10n {
     }
     var guardHud: String {
         switch lang {
-        case .zhHans: return "台标/字幕锁定"
-        case .zhHant: return "台標/字幕鎖定"
-        case .ja:     return "ロゴ・字幕固定"
-        case .ko:     return "로고·자막 고정"
-        case .fr:     return "Verrou HUD/Logo"
-        case .de:     return "Logo-/HUD-Sperre"
-        case .es:     return "Bloqueo HUD/Sub"
-        default:      return "HUD / Sub Lock"
+        case .zhHans: return "台标与字幕锁定"
+        case .zhHant: return "台標與字幕鎖定"
+        case .ja:     return "ロゴ・字幕の固定"
+        case .ko:     return "로고 및 자막 고정"
+        case .fr:     return "Verrouillage HUD / Logos"
+        case .de:     return "Logo- & Untertitel-Sperre"
+        case .es:     return "Bloqueo de logos y sub"
+        default:      return "Static Logo & HUD Lock"
         }
     }
     var guardHudTip: String {
@@ -572,12 +584,12 @@ struct L10n {
         switch lang {
         case .zhHans: return "电影黑边防护"
         case .zhHant: return "電影黑邊防護"
-        case .ja:     return "黒帯にじみ防止"
-        case .ko:     return "레터박스 보호"
-        case .fr:     return "Bandes noires"
-        case .de:     return "Balkenschutz"
-        case .es:     return "Bordes negros"
-        default:      return "Letterbox"
+        case .ja:     return "シネスコ黒帯保護"
+        case .ko:     return "레터박스 검은 여백 보호"
+        case .fr:     return "Protection bandes noires"
+        case .de:     return "Kinobalken-Schutz"
+        case .es:     return "Protección bordes negros"
+        default:      return "Cinema Letterbox Guard"
         }
     }
     var guardLetterboxTip: String {
@@ -594,14 +606,14 @@ struct L10n {
     }
     var guardGovernor: String {
         switch lang {
-        case .zhHans: return "智能温控防掉帧"
-        case .zhHant: return "智慧溫控防掉幀"
-        case .ja:     return "自動負荷制御"
-        case .ko:     return "자동 부하 조절"
-        case .fr:     return "Régulateur GPU"
-        case .de:     return "Auto-Governor"
-        case .es:     return "Control térmico"
-        default:      return "Auto Governor"
+        case .zhHans: return "自适应防掉帧"
+        case .zhHant: return "自適應防掉幀"
+        case .ja:     return "自動負荷ガバナー"
+        case .ko:     return "자동 프레임 드롭 방지"
+        case .fr:     return "Régulateur thermique"
+        case .de:     return "Dynamischer Governor"
+        case .es:     return "Regulador de carga GPU"
+        default:      return "Adaptive Performance Governor"
         }
     }
     var guardGovernorTip: String {
@@ -620,12 +632,12 @@ struct L10n {
         switch lang {
         case .zhHans: return "画面置信指示条"
         case .zhHant: return "畫面置信指示條"
-        case .ja:     return "デバッグ表示"
-        case .ko:     return "디버그 표시줄"
-        case .fr:     return "Barre de debug"
-        case .de:     return "Debug-Leiste"
-        case .es:     return "Barra debug"
-        default:      return "Debug Bar"
+        case .ja:     return "信頼度デバッグバー"
+        case .ko:     return "신뢰도 디버그 표시줄"
+        case .fr:     return "Barre de diagnostic"
+        case .de:     return "Konfidenz-Debugleiste"
+        case .es:     return "Barra de diagnóstico"
+        default:      return "On-Screen Confidence Bar"
         }
     }
     var guardOsdTip: String {
@@ -644,62 +656,62 @@ struct L10n {
     // IINA Section & Actions
     var secIina: String {
         switch lang {
-        case .zhHans: return "IINA 集成"
-        case .zhHant: return "IINA 整合"
-        case .ja:     return "IINA 連携"
-        case .ko:     return "IINA 연동"
+        case .zhHans: return "IINA 播放器集成"
+        case .zhHant: return "IINA 播放器整合"
+        case .ja:     return "IINA 連携ステータス"
+        case .ko:     return "IINA 플레이어 연동"
         case .fr:     return "Intégration IINA"
         case .de:     return "IINA-Integration"
-        case .es:     return "Integración IINA"
+        case .es:     return "Integración con IINA"
         default:      return "IINA Integration"
         }
     }
     var iinaInjected: String {
         switch lang {
-        case .zhHans: return "已注入"
-        case .zhHant: return "已注入"
-        case .ja:     return "注入済み"
-        case .ko:     return "주입됨"
-        case .fr:     return "Injecté"
-        case .de:     return "Injiziert"
-        case .es:     return "Inyectado"
-        default:      return "Injected"
+        case .zhHans: return "已注入引擎"
+        case .zhHant: return "已注入引擎"
+        case .ja:     return "エンジン注入済み"
+        case .ko:     return "엔진 주입됨"
+        case .fr:     return "Moteur injecté"
+        case .de:     return "Engine aktiv"
+        case .es:     return "Motor inyectado"
+        default:      return "Engine Injected"
         }
     }
     var iinaNative: String {
         switch lang {
-        case .zhHans: return "未注入"
-        case .zhHant: return "未注入"
-        case .ja:     return "未注入"
-        case .ko:     return "미주입"
+        case .zhHans: return "原版未注入"
+        case .zhHant: return "原版未注入"
+        case .ja:     return "未注入（純正状態）"
+        case .ko:     return "미주입 (순정 상태)"
         case .fr:     return "Non injecté"
         case .de:     return "Nicht injiziert"
-        case .es:     return "No inyectado"
+        case .es:     return "Sin inyectar"
         default:      return "Not Injected"
         }
     }
     var iinaMissing: String {
         switch lang {
-        case .zhHans: return "未安装 IINA"
-        case .zhHant: return "未安裝 IINA"
+        case .zhHans: return "未检测到 IINA"
+        case .zhHant: return "未檢測到 IINA"
         case .ja:     return "IINA 未検出"
-        case .ko:     return "IINA 없음"
+        case .ko:     return "IINA 미설치"
         case .fr:     return "IINA introuvable"
-        case .de:     return "IINA fehlt"
-        case .es:     return "Sin IINA"
+        case .de:     return "IINA nicht gefunden"
+        case .es:     return "IINA no encontrado"
         default:      return "IINA Not Found"
         }
     }
     var autoGuardToggle: String {
         switch lang {
-        case .zhHans: return "更新自动重注入"
-        case .zhHant: return "更新自動重注入"
+        case .zhHans: return "更新后自动重注入"
+        case .zhHant: return "更新後自動重注入"
         case .ja:     return "更新時に自動再注入"
         case .ko:     return "업데이트 시 자동 재주입"
-        case .fr:     return "Réinjection auto"
-        case .de:     return "Auto-Re-Injektion"
-        case .es:     return "Reinyección auto"
-        default:      return "Auto-Reinject"
+        case .fr:     return "Réinjection automatique"
+        case .de:     return "Auto-Re-Injektion bei Update"
+        case .es:     return "Reinyección automática"
+        default:      return "Auto-Reinject on Update"
         }
     }
     var autoGuardTip: String {
@@ -716,14 +728,14 @@ struct L10n {
     }
     var btnInject: String {
         switch lang {
-        case .zhHans: return "注入"
-        case .zhHant: return "注入"
-        case .ja:     return "注入"
-        case .ko:     return "주입"
-        case .fr:     return "Injecter"
-        case .de:     return "Injizieren"
-        case .es:     return "Inyectar"
-        default:      return "Inject"
+        case .zhHans: return "重新注入到 IINA"
+        case .zhHant: return "重新注入到 IINA"
+        case .ja:     return "IINA に再注入"
+        case .ko:     return "IINA에 다시 주입"
+        case .fr:     return "Injecter dans IINA"
+        case .de:     return "In IINA injizieren"
+        case .es:     return "Inyectar en IINA"
+        default:      return "Inject into IINA"
         }
     }
     var btnInjectTip: String {
@@ -740,14 +752,14 @@ struct L10n {
     }
     var btnRestore: String {
         switch lang {
-        case .zhHans: return "还原"
-        case .zhHant: return "還原"
-        case .ja:     return "復元"
-        case .ko:     return "복원"
-        case .fr:     return "Restaurer"
-        case .de:     return "Wiederherstellen"
-        case .es:     return "Restaurar"
-        default:      return "Restore"
+        case .zhHans: return "还原原版 IINA"
+        case .zhHant: return "還原原版 IINA"
+        case .ja:     return "純正状態に復元"
+        case .ko:     return "순정 상태로 복원"
+        case .fr:     return "Restaurer l'original"
+        case .de:     return "Original wiederherstellen"
+        case .es:     return "Restaurar original"
+        default:      return "Restore Original IINA"
         }
     }
     var btnRestoreTip: String {
@@ -764,26 +776,26 @@ struct L10n {
     }
     var btnOpenIina: String {
         switch lang {
-        case .zhHans: return "打开 IINA"
-        case .zhHant: return "打開 IINA"
-        case .ja:     return "IINA を開く"
-        case .ko:     return "IINA 열기"
+        case .zhHans: return "启动 IINA"
+        case .zhHant: return "啟動 IINA"
+        case .ja:     return "IINA を起動"
+        case .ko:     return "IINA 실행"
         case .fr:     return "Ouvrir IINA"
-        case .de:     return "IINA öffnen"
+        case .de:     return "IINA starten"
         case .es:     return "Abrir IINA"
-        default:      return "Open IINA"
+        default:      return "Launch IINA"
         }
     }
     var btnOpenSettings: String {
         switch lang {
-        case .zhHans: return "控制面板"
-        case .zhHant: return "控制面板"
-        case .ja:     return "コントロール"
-        case .ko:     return "제어판"
-        case .fr:     return "Panneau"
+        case .zhHans: return "打开控制台"
+        case .zhHant: return "打開控制台"
+        case .ja:     return "設定を開く"
+        case .ko:     return "제어판 열기"
+        case .fr:     return "Réglages"
         case .de:     return "Einstellungen"
-        case .es:     return "Panel"
-        default:      return "Settings"
+        case .es:     return "Ajustes"
+        default:      return "Control Center"
         }
     }
     var btnQuit: String {
@@ -809,19 +821,6 @@ struct L10n {
         case .es:     return "Cambiar el idioma de la interfaz (predeterminado: sistema)"
         default:      return "Switch interface language (defaults to system language)"
         }
-    }
-}
-
-// MARK: - Compact Hover Info Badge
-
-struct HoverInfoBadge: View {
-    let tip: String
-
-    var body: some View {
-        Image(systemName: "questionmark.circle")
-            .font(.system(size: 11))
-            .foregroundColor(.secondary.opacity(0.75))
-            .help(tip)
     }
 }
 
@@ -887,16 +886,17 @@ final class MacFrameViewModel: ObservableObject {
     private var isRunningInstaller = false
     private var pollCounter: Int = 0
 
-    init() {
+    init(startTimer: Bool = true) {
         targetIinaPath = "/Applications/IINA.app"
         ipcPtr = mf_ipc_open()
         loadFromIPC()
         refreshIinaInstallStatus()
-        ensureInjectedIfNeeded()
-
-        timer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.pollTelemetry()
+        if startTimer {
+            ensureInjectedIfNeeded()
+            timer = Timer.scheduledTimer(withTimeInterval: 0.15, repeats: true) { [weak self] _ in
+                Task { @MainActor in
+                    self?.pollTelemetry()
+                }
             }
         }
     }
@@ -1082,14 +1082,36 @@ final class MacFrameViewModel: ObservableObject {
     }
 }
 
-// MARK: - App Icon View
+// MARK: - App Icon & Card Surface Styling
+
+extension View {
+    func cardSurface(cornerRadius: CGFloat = 12) -> some View {
+        self
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color.primary.opacity(0.045))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .stroke(Color.primary.opacity(0.09), lineWidth: 1)
+            )
+    }
+}
 
 struct AppBrandIcon: View {
     let size: CGFloat
     let enabled: Bool
 
     var body: some View {
-        if let img = NSApp.applicationIconImage {
+        let iconPath = Bundle.main.path(forResource: "AppIcon", ofType: "icns")
+        if let path = iconPath, let img = NSImage(contentsOfFile: path) {
+            Image(nsImage: img)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: size, height: size)
+                .saturation(enabled ? 1.0 : 0.15)
+                .opacity(enabled ? 1.0 : 0.75)
+        } else if let img = NSApp.applicationIconImage {
             Image(nsImage: img)
                 .resizable()
                 .interpolation(.high)
@@ -1115,7 +1137,7 @@ struct AppBrandIcon: View {
     }
 }
 
-// MARK: - Menu Bar Popover Dashboard
+// MARK: - Menu Bar Popover Dashboard (Spacious 380pt Popover)
 
 struct MenuBarDashboardView: View {
     @ObservedObject var vm: MacFrameViewModel
@@ -1125,30 +1147,31 @@ struct MenuBarDashboardView: View {
 
     var body: some View {
         let t = vm.t
-        VStack(alignment: .leading, spacing: 12) {
-            // Top Status Row
-            HStack(spacing: 10) {
-                AppBrandIcon(size: 36, enabled: vm.enabled)
+        VStack(alignment: .leading, spacing: 14) {
+            // 1. Header Row
+            HStack(spacing: 12) {
+                AppBrandIcon(size: 42, enabled: vm.enabled)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 8) {
                         Text("MacFrame")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.system(size: 16, weight: .bold))
+                            .fixedSize()
                         statusPill(t: t)
                     }
                     Text(
                         !vm.enabled
-                            ? t.stateOff
+                            ? t.headerSubOff
                             : (vm.isPlaybackActive
                                 ? String(format: "%d×%d · %.0f → %.0f fps", vm.videoWidth, vm.videoHeight, vm.sourceFps, vm.outputFps)
-                                : t.idleSub)
+                                : "\(t.idleSub) · \(Int(vm.maxFpsCap)) fps")
                     )
-                    .font(.system(size: 11, design: .rounded))
+                    .font(.system(size: 11))
                     .foregroundColor(.secondary)
-                    .lineLimit(1)
+                    .fixedSize()
                 }
 
-                Spacer()
+                Spacer(minLength: 8)
 
                 Toggle("", isOn: Binding(
                     get: { vm.enabled },
@@ -1162,52 +1185,54 @@ struct MenuBarDashboardView: View {
                 .help(t.masterToggleTip)
             }
 
-            // 2x2 Compact Telemetry Grid
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
-                miniMetric(
+            // 2. 2x2 Telemetry Grid
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                dashMetric(
                     label: t.metricFps,
                     value: vm.isPlaybackActive ? String(format: "%.0f → %.0f", vm.sourceFps, vm.outputFps) : "—",
                     sub: vm.isPlaybackActive ? "\(vm.videoWidth)×\(vm.videoHeight)" : "\(Int(vm.maxFpsCap)) fps"
                 )
-                miniMetric(
+                dashMetric(
                     label: t.metricGpu,
                     value: vm.isPlaybackActive ? String(format: "%.2f ms", vm.gpuTimeAvgMs) : "—",
-                    sub: vm.isPlaybackActive ? String(format: "P99 %.2f ms", vm.gpuTimeP99Ms) : t.idleSub
+                    sub: vm.isPlaybackActive ? String(format: "P99 %.2f ms", vm.gpuTimeP99Ms) : "0.0 ms"
                 )
-                miniMetric(
+                dashMetric(
                     label: t.metricQuality,
                     value: vm.isPlaybackActive ? "Q\(vm.currentTier)" : "Q\(Int(round(vm.quality * 3) + 1))",
-                    sub: vm.isPlaybackActive ? String(format: "%.0f%%", vm.meanConfidence * 100) : "MF-Flow"
+                    sub: vm.isPlaybackActive ? String(format: "%@ %.0f%%", t.confidenceWord, vm.meanConfidence * 100) : "MF-Flow"
                 )
-                miniMetric(
+                dashMetric(
                     label: t.metricGuards,
                     value: vm.isPlaybackActive ? "\(vm.sceneCuts) / \(vm.dedupDrops)" : "0 / 0",
                     sub: vm.isEngineInstalledInTarget ? t.iinaInjected : t.iinaNative
                 )
             }
 
-            // Quick FPS Cap Bar
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 4) {
-                    Text(t.secFps)
-                        .font(.system(size: 11, weight: .semibold))
+            // 3. Quick FPS Cap
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(t.fpsCapLabel)
+                        .font(.system(size: 12, weight: .semibold))
                         .foregroundColor(.secondary)
-                    HoverInfoBadge(tip: t.secFpsTip)
                     Spacer()
+                    Text("\(Int(vm.maxFpsCap)) fps")
+                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                        .foregroundColor(.accentColor)
                 }
-                HStack(spacing: 5) {
+                HStack(spacing: 6) {
                     ForEach(fpsCaps, id: \.self) { cap in
                         Button {
                             vm.maxFpsCap = cap
                             vm.syncToIPC()
                         } label: {
                             Text("\(Int(cap))")
-                                .font(.system(size: 11, weight: vm.maxFpsCap == cap ? .bold : .medium, design: .rounded))
+                                .font(.system(size: 12, weight: vm.maxFpsCap == cap ? .bold : .medium, design: .rounded))
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 4)
+                                .padding(.vertical, 6)
                                 .background(vm.maxFpsCap == cap ? Color.accentColor : Color.secondary.opacity(0.14))
                                 .foregroundColor(vm.maxFpsCap == cap ? .white : .primary)
-                                .cornerRadius(6)
+                                .cornerRadius(7)
                         }
                         .buttonStyle(.plain)
                         .help("\(t.fpsCapLabel): \(Int(cap)) fps")
@@ -1215,45 +1240,47 @@ struct MenuBarDashboardView: View {
                 }
             }
             .disabled(!vm.enabled)
-            .opacity(vm.enabled ? 1.0 : 0.5)
+            .opacity(vm.enabled ? 1.0 : 0.45)
 
-            // Quick Preset Bar
-            VStack(alignment: .leading, spacing: 5) {
+            // 4. Quick Presets
+            VStack(alignment: .leading, spacing: 6) {
                 Text(t.secPreset)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(.secondary)
-                HStack(spacing: 5) {
-                    miniPresetButton(id: 0, title: t.presetFilm, tip: t.presetFilmTip)
-                    miniPresetButton(id: 1, title: t.presetAnime, tip: t.presetAnimeTip)
-                    miniPresetButton(id: 2, title: t.presetSports, tip: t.presetSportsTip)
-                    miniPresetButton(id: 3, title: t.presetCustom, tip: t.presetCustomTip)
+                HStack(spacing: 6) {
+                    dashPresetButton(id: 0, title: t.presetFilm, tip: t.presetFilmTip)
+                    dashPresetButton(id: 1, title: t.presetAnime, tip: t.presetAnimeTip)
+                    dashPresetButton(id: 2, title: t.presetSports, tip: t.presetSportsTip)
+                    dashPresetButton(id: 3, title: t.presetCustom, tip: t.presetCustomTip)
                 }
             }
             .disabled(!vm.enabled)
-            .opacity(vm.enabled ? 1.0 : 0.5)
+            .opacity(vm.enabled ? 1.0 : 0.45)
 
             Divider()
 
-            // Footer Actions
+            // 5. Footer Bar
             HStack(spacing: 8) {
                 Button {
                     openWindow(id: "main")
                     NSApp.activate(ignoringOtherApps: true)
                 } label: {
                     Label(t.btnOpenSettings, systemImage: "slider.horizontal.3")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: 12, weight: .medium))
+                        .fixedSize()
                 }
                 .buttonStyle(.borderedProminent)
-                .controlSize(.small)
+                .controlSize(.regular)
 
                 Button {
                     vm.launchTargetIina()
                 } label: {
-                    Label("IINA", systemImage: "play.tv")
-                        .font(.system(size: 11, weight: .medium))
+                    Text("IINA")
+                        .font(.system(size: 12, weight: .medium))
+                        .fixedSize()
                 }
                 .buttonStyle(.bordered)
-                .controlSize(.small)
+                .controlSize(.regular)
                 .help(t.btnOpenIina)
 
                 Spacer()
@@ -1264,63 +1291,66 @@ struct MenuBarDashboardView: View {
                     NSApplication.shared.terminate(nil)
                 } label: {
                     Image(systemName: "power")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: 12, weight: .semibold))
                 }
                 .buttonStyle(.bordered)
-                .controlSize(.small)
+                .controlSize(.regular)
                 .help(t.btnQuit)
             }
         }
-        .padding(14)
-        .frame(width: 310)
+        .padding(18)
+        .frame(width: 380)
     }
 
     private func statusPill(t: L10n) -> some View {
         let color: Color = !vm.enabled ? .secondary : (vm.isPlaybackActive ? .green : .cyan)
         let text: String = !vm.enabled ? t.stateOff : (vm.isPlaybackActive ? t.stateActive : t.stateStandby)
-        return HStack(spacing: 4) {
+        return HStack(spacing: 5) {
             Circle()
                 .fill(color)
                 .frame(width: 6, height: 6)
             Text(text)
-                .font(.system(size: 10, weight: .semibold))
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundColor(color)
+                .fixedSize()
         }
-        .padding(.horizontal, 6)
+        .padding(.horizontal, 8)
         .padding(.vertical, 2)
         .background(color.opacity(0.14))
         .clipShape(Capsule())
     }
 
-    private func miniMetric(label: String, value: String, sub: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+    private func dashMetric(label: String, value: String, sub: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
             Text(label)
-                .font(.system(size: 10, weight: .medium))
+                .font(.system(size: 11, weight: .medium))
                 .foregroundColor(.secondary)
+                .fixedSize()
             Text(value)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
-                .lineLimit(1)
+                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .fixedSize()
             Text(sub)
-                .font(.system(size: 9))
+                .font(.system(size: 11))
                 .foregroundColor(.secondary)
-                .lineLimit(1)
+                .fixedSize()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(8)
-        .background(RoundedRectangle(cornerRadius: 8).fill(Color(NSColor.controlBackgroundColor)))
+        .padding(12)
+        .cardSurface(cornerRadius: 10)
     }
 
-    private func miniPresetButton(id: Int32, title: String, tip: String) -> some View {
+    private func dashPresetButton(id: Int32, title: String, tip: String) -> some View {
         Button {
             vm.applyPresetDefaults(id)
         } label: {
             Text(title)
-                .font(.system(size: 11, weight: vm.preset == id ? .bold : .medium))
+                .font(.system(size: 12, weight: vm.preset == id ? .bold : .medium))
+                .fixedSize()
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 5)
+                .padding(.vertical, 7)
                 .background(vm.preset == id ? Color.accentColor : Color.secondary.opacity(0.14))
                 .foregroundColor(vm.preset == id ? .white : .primary)
-                .cornerRadius(6)
+                .cornerRadius(7)
         }
         .buttonStyle(.plain)
         .help(tip)
@@ -1341,15 +1371,15 @@ struct MenuBarDashboardView: View {
             }
         } label: {
             Image(systemName: "globe")
-                .font(.system(size: 11))
+                .font(.system(size: 13))
         }
         .menuStyle(.borderlessButton)
-        .frame(width: 24)
+        .frame(width: 28)
         .help(t.langTip)
     }
 }
 
-// MARK: - Main Control Center Window
+// MARK: - Main Control Center Window (Spacious 680pt Layout, Zero Truncation)
 
 struct ControlCenterView: View {
     @ObservedObject var vm: MacFrameViewModel
@@ -1358,47 +1388,60 @@ struct ControlCenterView: View {
 
     var body: some View {
         let t = vm.t
-        VStack(alignment: .leading, spacing: 12) {
-            headerCard(t: t)
-            telemetryRow(t: t)
-            fpsCard(t: t)
-            presetCard(t: t)
-            slidersCard(t: t)
-            guardsCard(t: t)
-            iinaFooterCard(t: t)
+        VStack(alignment: .leading, spacing: 16) {
+            headerSection(t: t)
+            telemetrySection(t: t)
+            fpsSection(t: t)
+            presetAndSlidersSection(t: t)
+            guardsSection(t: t)
+            iinaSection(t: t)
         }
-        .padding(18)
-        .frame(width: 560)
+        .padding(24)
+        .frame(width: 680)
     }
 
-    private func headerCard(t: L10n) -> some View {
-        HStack(spacing: 12) {
-            AppBrandIcon(size: 44, enabled: vm.enabled)
+    // 1. Header Card
+    private func headerSection(t: L10n) -> some View {
+        HStack(spacing: 14) {
+            AppBrandIcon(size: 50, enabled: vm.enabled)
 
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 10) {
                     Text("MacFrame")
-                        .font(.system(size: 18, weight: .bold))
+                        .font(.system(size: 20, weight: .bold))
+                        .fixedSize()
                     let badgeColor: Color = !vm.enabled ? .secondary : (vm.isPlaybackActive ? .green : .cyan)
                     let badgeText: String = !vm.enabled ? t.stateOff : (vm.isPlaybackActive ? t.stateActive : t.stateStandby)
-                    Text(badgeText)
-                        .font(.system(size: 10, weight: .semibold))
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 2)
-                        .background(badgeColor.opacity(0.16))
-                        .foregroundColor(badgeColor)
-                        .clipShape(Capsule())
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(badgeColor)
+                            .frame(width: 6, height: 6)
+                        Text(badgeText)
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(badgeColor)
+                            .fixedSize()
+                    }
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 3)
+                    .background(badgeColor.opacity(0.15))
+                    .clipShape(Capsule())
                 }
-                if vm.isPlaybackActive && vm.enabled {
-                    Text(String(format: "%d×%d · %.1f → %.1f fps", vm.videoWidth, vm.videoHeight, vm.sourceFps, vm.outputFps))
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(.secondary)
-                }
+
+                Text(
+                    !vm.enabled
+                        ? t.headerSubOff
+                        : (vm.isPlaybackActive
+                            ? String(format: "%d×%d · %.1f → %.1f fps", vm.videoWidth, vm.videoHeight, vm.sourceFps, vm.outputFps)
+                            : "\(t.idleSub) · \(Int(vm.maxFpsCap)) fps")
+                )
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+                .fixedSize()
             }
 
             Spacer()
 
-            // Language Picker
+            // Language Switcher Menu
             Menu {
                 ForEach(AppLanguage.allCases) { item in
                     Button {
@@ -1412,15 +1455,17 @@ struct ControlCenterView: View {
                     }
                 }
             } label: {
-                HStack(spacing: 4) {
+                HStack(spacing: 5) {
                     Image(systemName: "globe")
+                        .font(.system(size: 12))
                     Text(vm.selectedLanguage.displayName(in: vm.selectedLanguage))
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: 12, weight: .medium))
+                        .fixedSize()
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
                 .background(Color.secondary.opacity(0.12))
-                .cornerRadius(6)
+                .cornerRadius(7)
             }
             .menuStyle(.borderlessButton)
             .fixedSize()
@@ -1438,93 +1483,100 @@ struct ControlCenterView: View {
             .scaleEffect(1.15)
             .help(t.masterToggleTip)
         }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color(NSColor.controlBackgroundColor)))
+        .padding(16)
+        .cardSurface(cornerRadius: 12)
     }
 
-    private func telemetryRow(t: L10n) -> some View {
-        HStack(spacing: 10) {
-            metricBox(
+    // 2. Telemetry Row
+    private func telemetrySection(t: L10n) -> some View {
+        HStack(spacing: 12) {
+            metricCard(
                 title: t.metricFps,
                 value: vm.isPlaybackActive ? String(format: "%.0f → %.0f", vm.sourceFps, vm.outputFps) : "—",
                 sub: vm.isPlaybackActive ? "\(vm.videoWidth)×\(vm.videoHeight)" : t.idleSub
             )
-            metricBox(
+            metricCard(
                 title: t.metricGpu,
                 value: vm.isPlaybackActive ? String(format: "%.2f ms", vm.gpuTimeAvgMs) : "—",
                 sub: vm.isPlaybackActive ? String(format: "P99 %.2f ms", vm.gpuTimeP99Ms) : "0.0 ms"
             )
-            metricBox(
+            metricCard(
                 title: t.metricQuality,
                 value: vm.isPlaybackActive ? "Q\(vm.currentTier)" : "Q\(Int(round(vm.quality * 3) + 1))",
-                sub: vm.isPlaybackActive ? String(format: "%.0f%%", vm.meanConfidence * 100) : "100%"
+                sub: vm.isPlaybackActive ? String(format: "%@ %.0f%%", t.confidenceWord, vm.meanConfidence * 100) : "100%"
             )
-            metricBox(
+            metricCard(
                 title: t.metricGuards,
                 value: vm.isPlaybackActive ? "\(vm.sceneCuts) / \(vm.dedupDrops)" : "0 / 0",
-                sub: "Cuts / Dedup"
+                sub: vm.isEngineInstalledInTarget ? t.iinaInjected : t.iinaNative
             )
         }
     }
 
-    private func metricBox(title: String, value: String, sub: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
+    private func metricCard(title: String, value: String, sub: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
             Text(title)
-                .font(.system(size: 10, weight: .medium))
+                .font(.system(size: 11, weight: .medium))
                 .foregroundColor(.secondary)
+                .fixedSize()
             Text(value)
-                .font(.system(size: 15, weight: .bold, design: .rounded))
-                .lineLimit(1)
+                .font(.system(size: 18, weight: .bold, design: .rounded))
+                .fixedSize()
             Text(sub)
-                .font(.system(size: 10))
+                .font(.system(size: 11))
                 .foregroundColor(.secondary)
-                .lineLimit(1)
+                .fixedSize()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Color(NSColor.controlBackgroundColor)))
+        .padding(14)
+        .cardSurface(cornerRadius: 10)
     }
 
-    private func fpsCard(t: L10n) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
+    // 3. Target FPS Section (2 Spacious Rows)
+    private func fpsSection(t: L10n) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Top Row: Section Title on left, 3 Mode Pills on right
+            HStack(spacing: 12) {
                 Text(t.secFps)
                     .font(.system(size: 13, weight: .semibold))
-                HoverInfoBadge(tip: t.secFpsTip)
+                    .fixedSize()
+
                 Spacer()
-                Picker("", selection: Binding(
-                    get: { vm.fpsMode },
-                    set: { val in
-                        vm.fpsMode = val
-                        vm.syncToIPC()
-                    }
-                )) {
-                    Text(t.modeDisplay).tag(Int32(0))
-                    Text(t.modeFixed).tag(Int32(1))
-                    Text(t.modeDouble).tag(Int32(2))
+
+                HStack(spacing: 8) {
+                    modePill(id: 0, title: t.modeDisplay, tip: t.secFpsTip)
+                    modePill(id: 1, title: t.modeFixed, tip: t.secFpsTip)
+                    modePill(id: 2, title: t.modeDouble, tip: t.secFpsTip)
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(width: 240)
-                .help(t.secFpsTip)
             }
 
-            HStack(spacing: 6) {
-                ForEach(fpsCaps, id: \.self) { cap in
-                    Button {
-                        vm.maxFpsCap = cap
-                        vm.syncToIPC()
-                    } label: {
-                        Text("\(Int(cap))")
-                            .font(.system(size: 12, weight: vm.maxFpsCap == cap ? .bold : .medium, design: .rounded))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(vm.maxFpsCap == cap ? Color.accentColor : Color.secondary.opacity(0.14))
-                            .foregroundColor(vm.maxFpsCap == cap ? .white : .primary)
-                            .cornerRadius(6)
+            Divider()
+
+            // Bottom Row: FPS Cap Pills + Slider
+            HStack(spacing: 12) {
+                Text(t.fpsCapLabel)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.secondary)
+                    .fixedSize()
+
+                HStack(spacing: 6) {
+                    ForEach(fpsCaps, id: \.self) { cap in
+                        Button {
+                            vm.maxFpsCap = cap
+                            vm.syncToIPC()
+                        } label: {
+                            Text("\(Int(cap))")
+                                .font(.system(size: 12, weight: vm.maxFpsCap == cap ? .bold : .medium, design: .rounded))
+                                .fixedSize()
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 5)
+                                .background(vm.maxFpsCap == cap ? Color.accentColor : Color.secondary.opacity(0.14))
+                                .foregroundColor(vm.maxFpsCap == cap ? .white : .primary)
+                                .cornerRadius(6)
+                        }
+                        .buttonStyle(.plain)
+                        .help("\(t.fpsCapLabel): \(Int(cap)) fps")
                     }
-                    .buttonStyle(.plain)
-                    .help("\(t.fpsCapLabel): \(Int(cap)) fps")
                 }
 
                 Slider(
@@ -1541,231 +1593,347 @@ struct ControlCenterView: View {
                 .help(t.secFpsTip)
 
                 Text("\(Int(vm.maxFpsCap)) fps")
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                    .frame(width: 56, alignment: .trailing)
+                    .font(.system(size: 13, weight: .bold, design: .monospaced))
+                    .foregroundColor(.accentColor)
+                    .frame(width: 64, alignment: .trailing)
+                    .fixedSize()
             }
         }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Color(NSColor.controlBackgroundColor)))
+        .padding(16)
+        .cardSurface(cornerRadius: 12)
         .disabled(!vm.enabled)
-        .opacity(vm.enabled ? 1.0 : 0.5)
+        .opacity(vm.enabled ? 1.0 : 0.45)
     }
 
-    private func presetCard(t: L10n) -> some View {
-        HStack(spacing: 10) {
-            Text(t.secPreset)
-                .font(.system(size: 13, weight: .semibold))
-
-            HStack(spacing: 6) {
-                presetPill(id: 0, icon: "film", title: t.presetFilm, tip: t.presetFilmTip)
-                presetPill(id: 1, icon: "sparkles", title: t.presetAnime, tip: t.presetAnimeTip)
-                presetPill(id: 2, icon: "bolt.fill", title: t.presetSports, tip: t.presetSportsTip)
-                presetPill(id: 3, icon: "slider.horizontal.3", title: t.presetCustom, tip: t.presetCustomTip)
-            }
-
-            Spacer()
-
-            HStack(spacing: 4) {
-                Text(t.backendLabel)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.secondary)
-                Picker("", selection: Binding(
-                    get: { vm.backend },
-                    set: { val in
-                        vm.backend = val
-                        vm.syncToIPC()
-                    }
-                )) {
-                    Text("MF-Flow").tag(Int32(1))
-                    Text("VT-FRC").tag(Int32(2))
-                    Text(t.backendAuto).tag(Int32(0))
-                }
-                .labelsHidden()
-                .frame(width: 100)
-                .help(t.backendTip)
-            }
-        }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Color(NSColor.controlBackgroundColor)))
-        .disabled(!vm.enabled)
-        .opacity(vm.enabled ? 1.0 : 0.5)
-    }
-
-    private func presetPill(id: Int32, icon: String, title: String, tip: String) -> some View {
+    private func modePill(id: Int32, title: String, tip: String) -> some View {
         Button {
-            vm.applyPresetDefaults(id)
+            vm.fpsMode = id
+            vm.syncToIPC()
         } label: {
-            HStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 11))
-                Text(title)
-                    .font(.system(size: 12, weight: vm.preset == id ? .bold : .medium))
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .background(vm.preset == id ? Color.accentColor : Color.secondary.opacity(0.14))
-            .foregroundColor(vm.preset == id ? .white : .primary)
-            .cornerRadius(7)
+            Text(title)
+                .font(.system(size: 12, weight: vm.fpsMode == id ? .semibold : .regular))
+                .fixedSize()
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
+                .background(vm.fpsMode == id ? Color.accentColor : Color.secondary.opacity(0.14))
+                .foregroundColor(vm.fpsMode == id ? .white : .primary)
+                .cornerRadius(6)
         }
         .buttonStyle(.plain)
         .help(tip)
     }
 
-    private func slidersCard(t: L10n) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(t.secTuning)
-                .font(.system(size: 13, weight: .semibold))
+    // 4. Presets, Engine & Sliders Section (Full-Width Preset Cards + Full-Width Slider Rows)
+    private func presetAndSlidersSection(t: L10n) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            // Header Row: Section Title on left, Engine Backend Picker on right
+            HStack(spacing: 12) {
+                Text(t.secPreset)
+                    .font(.system(size: 13, weight: .semibold))
+                    .fixedSize()
 
-            compactSlider(
-                title: t.sliderSmoothness,
-                valueText: "\(Int(round(vm.smoothness * 100)))%",
-                tip: t.sliderSmoothnessTip,
-                value: Binding(
-                    get: { Double(vm.smoothness) },
-                    set: { val in
-                        vm.smoothness = Float(val)
-                        vm.preset = 3
-                        vm.syncToIPC()
-                    }
-                )
-            )
+                Spacer()
 
-            compactSlider(
-                title: t.sliderRepair,
-                valueText: "\(Int(round(vm.artifactGuard * 100)))%",
-                tip: t.sliderRepairTip,
-                value: Binding(
-                    get: { Double(vm.artifactGuard) },
-                    set: { val in
-                        vm.artifactGuard = Float(val)
-                        vm.preset = 3
-                        vm.syncToIPC()
+                HStack(spacing: 8) {
+                    Text(t.backendLabel)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .fixedSize()
+                    HStack(spacing: 5) {
+                        backendPill(id: 1, title: "MF-Flow", tip: t.backendTip)
+                        backendPill(id: 2, title: "VT-FRC", tip: t.backendTip)
+                        backendPill(id: 0, title: t.backendAuto, tip: t.backendTip)
                     }
-                )
-            )
+                }
+            }
 
-            compactSlider(
-                title: t.sliderQuality,
-                valueText: "Q\(Int(round(vm.quality * 3) + 1))",
-                tip: t.sliderQualityTip,
-                value: Binding(
-                    get: { Double(vm.quality) },
-                    set: { val in
-                        vm.quality = Float(val)
-                        vm.syncToIPC()
-                    }
+            // 4 Equal-Width Preset Buttons Across Full 600pt Width
+            HStack(spacing: 10) {
+                presetCardButton(id: 0, icon: "film", title: t.presetFilm, tip: t.presetFilmTip)
+                presetCardButton(id: 1, icon: "sparkles", title: t.presetAnime, tip: t.presetAnimeTip)
+                presetCardButton(id: 2, icon: "bolt.fill", title: t.presetSports, tip: t.presetSportsTip)
+                presetCardButton(id: 3, icon: "slider.horizontal.3", title: t.presetCustom, tip: t.presetCustomTip)
+            }
+
+            Divider()
+
+            // 3 Full-Width Sliders (Unconstrained label width + wide slider track + value badge)
+            VStack(alignment: .leading, spacing: 12) {
+                fullWidthSliderRow(
+                    title: t.sliderSmoothness,
+                    valueText: "\(Int(round(vm.smoothness * 100)))%",
+                    tip: t.sliderSmoothnessTip,
+                    value: Binding(
+                        get: { Double(vm.smoothness) },
+                        set: { val in
+                            vm.smoothness = Float(val)
+                            vm.preset = 3
+                            vm.syncToIPC()
+                        }
+                    )
                 )
-            )
+
+                fullWidthSliderRow(
+                    title: t.sliderRepair,
+                    valueText: "\(Int(round(vm.artifactGuard * 100)))%",
+                    tip: t.sliderRepairTip,
+                    value: Binding(
+                        get: { Double(vm.artifactGuard) },
+                        set: { val in
+                            vm.artifactGuard = Float(val)
+                            vm.preset = 3
+                            vm.syncToIPC()
+                        }
+                    )
+                )
+
+                fullWidthSliderRow(
+                    title: t.sliderQuality,
+                    valueText: "Q\(Int(round(vm.quality * 3) + 1)) (\(Int(round(vm.quality * 100)))%)",
+                    tip: t.sliderQualityTip,
+                    value: Binding(
+                        get: { Double(vm.quality) },
+                        set: { val in
+                            vm.quality = Float(val)
+                            vm.syncToIPC()
+                        }
+                    )
+                )
+            }
         }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Color(NSColor.controlBackgroundColor)))
+        .padding(16)
+        .cardSurface(cornerRadius: 12)
         .disabled(!vm.enabled)
-        .opacity(vm.enabled ? 1.0 : 0.5)
+        .opacity(vm.enabled ? 1.0 : 0.45)
     }
 
-    private func compactSlider(title: String, valueText: String, tip: String, value: Binding<Double>) -> some View {
-        HStack(spacing: 8) {
-            HStack(spacing: 4) {
+    private func backendPill(id: Int32, title: String, tip: String) -> some View {
+        Button {
+            vm.backend = id
+            vm.syncToIPC()
+        } label: {
+            Text(title)
+                .font(.system(size: 11, weight: vm.backend == id ? .bold : .medium))
+                .fixedSize()
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(vm.backend == id ? Color.accentColor.opacity(0.85) : Color.secondary.opacity(0.14))
+                .foregroundColor(vm.backend == id ? .white : .primary)
+                .cornerRadius(6)
+        }
+        .buttonStyle(.plain)
+        .help(tip)
+    }
+
+    private func presetCardButton(id: Int32, icon: String, title: String, tip: String) -> some View {
+        Button {
+            vm.applyPresetDefaults(id)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: .semibold))
                 Text(title)
-                    .font(.system(size: 12, weight: .medium))
-                HoverInfoBadge(tip: tip)
+                    .font(.system(size: 13, weight: vm.preset == id ? .bold : .medium))
+                    .fixedSize()
             }
-            .frame(width: 110, alignment: .leading)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 9)
+            .background(vm.preset == id ? Color.accentColor : Color.secondary.opacity(0.12))
+            .foregroundColor(vm.preset == id ? .white : .primary)
+            .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
+        .help(tip)
+    }
+
+    private func fullWidthSliderRow(title: String, valueText: String, tip: String, value: Binding<Double>) -> some View {
+        HStack(spacing: 14) {
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+                .fixedSize()
+                .frame(minWidth: 165, alignment: .leading)
 
             Slider(value: value, in: 0.0...1.0)
-                .help(tip)
 
             Text(valueText)
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .font(.system(size: 12, weight: .bold, design: .monospaced))
                 .foregroundColor(.accentColor)
-                .frame(width: 44, alignment: .trailing)
+                .fixedSize()
+                .frame(minWidth: 68, alignment: .trailing)
         }
+        .help(tip)
     }
 
-    private func guardsCard(t: L10n) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+    // 5. Artifact Guards Section (2-Column Spacious Switch Grid)
+    private func guardsSection(t: L10n) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
             Text(t.secGuards)
                 .font(.system(size: 13, weight: .semibold))
+                .fixedSize()
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                guardItem(t.guardScene, tip: t.guardSceneTip, isOn: $vm.sceneDetect)
-                guardItem(t.guardDedup, tip: t.guardDedupTip, isOn: $vm.dedup)
-                guardItem(t.guardHud, tip: t.guardHudTip, isOn: $vm.staticLock)
-                guardItem(t.guardLetterbox, tip: t.guardLetterboxTip, isOn: $vm.letterboxGuard)
-                guardItem(t.guardGovernor, tip: t.guardGovernorTip, isOn: $vm.governor)
-                guardItem(t.guardOsd, tip: t.guardOsdTip, isOn: $vm.debugOsd)
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 10) {
+                guardSwitchRow(t.guardScene, tip: t.guardSceneTip, isOn: $vm.sceneDetect)
+                guardSwitchRow(t.guardDedup, tip: t.guardDedupTip, isOn: $vm.dedup)
+                guardSwitchRow(t.guardHud, tip: t.guardHudTip, isOn: $vm.staticLock)
+                guardSwitchRow(t.guardLetterbox, tip: t.guardLetterboxTip, isOn: $vm.letterboxGuard)
+                guardSwitchRow(t.guardGovernor, tip: t.guardGovernorTip, isOn: $vm.governor)
+                guardSwitchRow(t.guardOsd, tip: t.guardOsdTip, isOn: $vm.debugOsd)
             }
         }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Color(NSColor.controlBackgroundColor)))
+        .padding(16)
+        .cardSurface(cornerRadius: 12)
         .disabled(!vm.enabled)
-        .opacity(vm.enabled ? 1.0 : 0.5)
+        .opacity(vm.enabled ? 1.0 : 0.45)
     }
 
-    private func guardItem(_ label: String, tip: String, isOn: Binding<Bool>) -> some View {
-        HStack(spacing: 4) {
-            Toggle(label, isOn: Binding(
+    private func guardSwitchRow(_ label: String, tip: String, isOn: Binding<Bool>) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 12, weight: .regular))
+                .fixedSize()
+            Spacer(minLength: 8)
+            Toggle("", isOn: Binding(
                 get: { isOn.wrappedValue },
                 set: { val in
                     isOn.wrappedValue = val
                     vm.syncToIPC()
                 }
             ))
-            .font(.system(size: 12))
-            .help(tip)
-
-            HoverInfoBadge(tip: tip)
-            Spacer(minLength: 0)
+            .toggleStyle(.switch)
+            .controlSize(.small)
+            .labelsHidden()
         }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.08)))
+        .help(tip)
     }
 
-    private func iinaFooterCard(t: L10n) -> some View {
-        HStack(spacing: 10) {
-            Circle()
-                .fill(vm.isEngineInstalledInTarget ? Color.green : Color.orange)
-                .frame(width: 8, height: 8)
-            Text(t.secIina)
-                .font(.system(size: 12, weight: .semibold))
-            Text(
-                !vm.isTargetIinaPresent
-                    ? t.iinaMissing
-                    : (vm.isEngineInstalledInTarget ? t.iinaInjected : t.iinaNative)
-            )
-            .font(.system(size: 11))
-            .foregroundColor(.secondary)
+    // 6. IINA Integration Footer Section (Spacious 2-Row Card)
+    private func iinaSection(t: L10n) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Row 1: Status on left, Auto-Reinject Switch on right
+            HStack(spacing: 10) {
+                Circle()
+                    .fill(vm.isEngineInstalledInTarget ? Color.green : Color.orange)
+                    .frame(width: 8, height: 8)
+                Text(t.secIina)
+                    .font(.system(size: 13, weight: .semibold))
+                    .fixedSize()
+                Text(
+                    !vm.isTargetIinaPresent
+                        ? t.iinaMissing
+                        : (vm.isEngineInstalledInTarget ? t.iinaInjected : t.iinaNative)
+                )
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(vm.isEngineInstalledInTarget ? .green : .secondary)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 2)
+                .background((vm.isEngineInstalledInTarget ? Color.green : Color.secondary).opacity(0.14))
+                .clipShape(Capsule())
+                .fixedSize()
+
+                Spacer()
+
+                HStack(spacing: 8) {
+                    Text(t.autoGuardToggle)
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .fixedSize()
+                    Toggle("", isOn: $vm.autoInjectOnUpdate)
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .labelsHidden()
+                }
+                .help(t.autoGuardTip)
+            }
 
             Divider()
-                .frame(height: 14)
 
-            Toggle(t.autoGuardToggle, isOn: $vm.autoInjectOnUpdate)
-                .font(.system(size: 11))
-                .help(t.autoGuardTip)
+            // Row 2: Action Buttons
+            HStack(spacing: 10) {
+                Button(t.btnInject) {
+                    vm.runInstaller(install: true)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
+                .fixedSize()
+                .help(t.btnInjectTip)
 
-            Spacer()
+                Button(t.btnRestore) {
+                    vm.runInstaller(install: false)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                .fixedSize()
+                .help(t.btnRestoreTip)
 
-            Button(t.btnInject) {
-                vm.runInstaller(install: true)
+                Spacer()
+
+                Button {
+                    vm.launchTargetIina()
+                } label: {
+                    Label(t.btnOpenIina, systemImage: "play.tv")
+                        .fixedSize()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                .help(t.btnOpenIina)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
-            .help(t.btnInjectTip)
-
-            Button(t.btnRestore) {
-                vm.runInstaller(install: false)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .help(t.btnRestoreTip)
-
-            Button(t.btnOpenIina) {
-                vm.launchTargetIina()
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .help(t.btnOpenIina)
         }
-        .padding(12)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Color(NSColor.controlBackgroundColor)))
+        .padding(16)
+        .cardSurface(cornerRadius: 12)
+    }
+}
+
+// MARK: - Snapshot Renderer for Multi-Language UI Verification
+
+@MainActor
+func renderHostingViewToPNG<V: View>(_ view: V, path: String) {
+    let hosting = NSHostingView(rootView: view)
+    hosting.appearance = NSAppearance(named: .darkAqua)
+    let size = hosting.fittingSize
+    hosting.frame = NSRect(origin: .zero, size: size)
+    hosting.layoutSubtreeIfNeeded()
+    guard let rep = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else { return }
+    hosting.cacheDisplay(in: hosting.bounds, to: rep)
+    if let png = rep.representation(using: .png, properties: [:]) {
+        try? png.write(to: URL(fileURLWithPath: path))
+    }
+}
+
+@MainActor
+func dumpUISnapshots(to dir: String) {
+    _ = NSApplication.shared
+    try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+    let vm = MacFrameViewModel(startTimer: false)
+    vm.enabled = true
+    vm.isPlaybackActive = true
+    vm.videoWidth = 1920
+    vm.videoHeight = 1080
+    vm.sourceFps = 23.976
+    vm.outputFps = 120.0
+    vm.gpuTimeAvgMs = 1.48
+    vm.gpuTimeP99Ms = 2.31
+    vm.currentTier = 4
+    vm.meanConfidence = 0.96
+    vm.sceneCuts = 5
+    vm.dedupDrops = 18
+    vm.isEngineInstalledInTarget = true
+
+    let testLangs: [AppLanguage] = [.zhHans, .zhHant, .en, .ja, .ko, .fr, .de, .es]
+    for lang in testLangs {
+        vm.selectedLanguage = lang
+
+        let mainView = ControlCenterView(vm: vm)
+            .background(Color(NSColor.windowBackgroundColor))
+            .environment(\.colorScheme, .dark)
+        renderHostingViewToPNG(mainView, path: "\(dir)/main_\(lang.rawValue).png")
+
+        let dashView = MenuBarDashboardView(vm: vm)
+            .background(Color(NSColor.windowBackgroundColor))
+            .environment(\.colorScheme, .dark)
+        renderHostingViewToPNG(dashView, path: "\(dir)/dash_\(lang.rawValue).png")
     }
 }
 
@@ -1774,6 +1942,17 @@ struct ControlCenterView: View {
 @main
 struct MacFrameControlApp: App {
     @StateObject private var vm = MacFrameViewModel()
+
+    init() {
+        let args = CommandLine.arguments
+        if let idx = args.firstIndex(of: "--dump-snapshots"), idx + 1 < args.count {
+            let outDir = args[idx + 1]
+            MainActor.assumeIsolated {
+                dumpUISnapshots(to: outDir)
+            }
+            exit(0)
+        }
+    }
 
     var body: some Scene {
         Window("MacFrame", id: "main") {
