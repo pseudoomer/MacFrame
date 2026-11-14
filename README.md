@@ -1,10 +1,15 @@
-# MacFrame
+# <img src="./docs/images/icon-1024.png" width="42" align="top" /> MacFrame
 
 [中文文档 (README.zh-CN.md)](./README.zh-CN.md) | [Architecture](./docs/ARCHITECTURE.md) | [Algorithm & Artifact Guard](./docs/ALGORITHM.md) | [Install Guide](./docs/INSTALL.md) | [Tuning](./docs/TUNING.md) | [FAQ](./docs/FAQ.md)
 
-**MacFrame** is an open-source (**GPL-3.0**) real-time video frame interpolation engine and **IINA** plugin built natively for **Apple Silicon (M1 / M2 / M3 / M4)** using **Metal** and **VideoToolbox**.
+**MacFrame** is an open-source (**GPL-3.0**) real-time video frame interpolation engine and standalone control center (`MacFrame.app`) for **IINA**, built natively for **Apple Silicon (M1 / M2 / M3 / M4)** using **Metal** and **VideoToolbox**.
 
-Designed as a zero-copy, lightweight, native alternative to SVP 4 Pro on macOS, MacFrame eliminates the need for Python, VapourSynth, or CPU copy-back (`hwdec=auto-copy`) by operating directly on `CVPixelBuffer` (`IOSurface`) hardware frames inside IINA's `libavfilter` pipeline.
+Designed as a zero-copy, lightweight, native alternative to SVP 4 Pro on macOS, MacFrame eliminates the need for Python, VapourSynth, or CPU copy-back (`hwdec=auto-copy`) by operating directly on `CVPixelBuffer` (`IOSurface`) hardware frames inside IINA's pipeline.
+
+<p align="center">
+  <img src="./docs/images/ui-main-en.png" width="62%" alt="MacFrame Control Center" />
+  <img src="./docs/images/ui-dashboard.png" width="33%" alt="MacFrame Menu Bar Dashboard" />
+</p>
 
 ---
 

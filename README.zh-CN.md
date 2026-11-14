@@ -1,10 +1,15 @@
-# MacFrame — Apple Silicon 原生开源实时补帧引擎（IINA 插件）
+# <img src="./docs/images/icon-1024.png" width="42" align="top" /> MacFrame — Apple Silicon 原生开源实时补帧引擎（IINA）
 
 [English (README.md)](./README.md) | [架构设计](./docs/ARCHITECTURE.md) | [算法与伪影防护](./docs/ALGORITHM.md) | [安装指南](./docs/INSTALL.md) | [参数调优](./docs/TUNING.md) | [常见问题](./docs/FAQ.md)
 
-**MacFrame** 是专为 **macOS Apple Silicon（M1 / M2 / M3 / M4）** 与 **IINA** 播放器打造的 **GPL-3.0 开源**实时视频补帧插件（SVP 4 Pro 的原生开源替代方案）。
+**MacFrame** 是专为 **macOS Apple Silicon（M1 / M2 / M3 / M4）** 与 **IINA** 播放器打造的 **GPL-3.0 开源**实时视频补帧引擎与独立控制应用（SVP 4 Pro 的原生开源替代方案）。
 
-不同于传统方案需要安装 Homebrew、Python、VapourSynth 并强制关闭硬件解码直通（`hwdec=auto-copy`），MacFrame 直接在 IINA 的 `libavfilter` 硬件帧管线中通过 `CVMetalTextureCache` 原生读写 `CVPixelBuffer`（`IOSurface`），实现 **全程 GPU 零拷贝** 的 120Hz ProMotion 实时插帧。
+不同于传统方案需要安装 Homebrew、Python、VapourSynth 并强制关闭硬件解码直通（`hwdec=auto-copy`），MacFrame 直接注入原版 `/Applications/IINA.app`（支持 IINA 更新后后台自动重注入），在硬件帧管线中通过 `CVMetalTextureCache` 原生读写 `CVPixelBuffer`（`IOSurface`），实现 **全程 GPU 零拷贝** 的高刷实时插帧。
+
+<p align="center">
+  <img src="./docs/images/ui-main-zh.png" width="62%" alt="MacFrame 控制面板" />
+  <img src="./docs/images/ui-dashboard.png" width="33%" alt="MacFrame 状态栏 Dashboard" />
+</p>
 
 ---
 
