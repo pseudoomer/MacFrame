@@ -257,7 +257,17 @@ struct mf_engine {
 
         // Initialize VTFrameRateConversion so mid-playback backend switching in MacFrame.app is instant
         if (@available(macOS 15.4, *)) {
-            if ([VTFrameRateConversionConfiguration isSupported]) {
+            BOOL vt_config_supported = NO;
+#if defined(__MAC_OS_X_VERSION_MAX_ALLOWED) && __MAC_OS_X_VERSION_MAX_ALLOWED >= 260000
+            if (@available(macOS 26.0, *)) {
+                vt_config_supported = [VTFrameRateConversionConfiguration isSupported];
+            } else {
+                vt_config_supported = [VTFrameRateConversionConfiguration processorSupported];
+            }
+#else
+            vt_config_supported = [VTFrameRateConversionConfiguration processorSupported];
+#endif
+            if (vt_config_supported) {
                 VTFrameRateConversionConfiguration *vt_cfg =
                     [[VTFrameRateConversionConfiguration alloc]
                         initWithFrameWidth:cfg.width
