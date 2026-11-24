@@ -5,6 +5,9 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
 jobs:
   package-release:
     runs-on: macos-26
@@ -24,4 +27,15 @@ jobs:
           mkdir -p release-pkg/MacFrame/dist
           cp -R dist/MacFrame.app dist/libmacframe.1.dylib release-pkg/MacFrame/dist/
           cp -R build/mfbench installer iina-plugin docs LICENSE README.md README.zh-CN.md "Install MacFrame.command" "Uninstall MacFrame.command" release-pkg/MacFrame/
-          cd release-pkg && zip -r ../MacFrame-macos-arm64.zip MacFrame
+          cd release-pkg && zip -r "../MacFrame-${GITHUB_REF_NAME}-macos.zip" MacFrame
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" "MacFrame-${GITHUB_REF_NAME}-macos.zip" \
+              --repo "${GITHUB_REPOSITORY}" --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" "MacFrame-${GITHUB_REF_NAME}-macos.zip" \
+              --repo "${GITHUB_REPOSITORY}" --title "${GITHUB_REF_NAME}" --generate-notes
+          fi
