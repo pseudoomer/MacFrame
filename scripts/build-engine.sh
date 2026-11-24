@@ -27,7 +27,7 @@ cp "${BUILD_DIR}/libmacframe.1.0.0.dylib" "${STAGE_BUNDLE}/Contents/Frameworks/l
 ln -sf "libmacframe.1.0.0.dylib" "${STAGE_BUNDLE}/Contents/Frameworks/libmacframe.1.dylib"
 ln -sf "libmacframe.1.dylib" "${STAGE_BUNDLE}/Contents/Frameworks/libmacframe.dylib"
 
-swiftc -O -parse-as-library "${ROOT_DIR}/app/MacFrameApp.swift" \
+swiftc -O -parse-as-library -target arm64-apple-macosx15.0 "${ROOT_DIR}/app/MacFrameApp.swift" \
     -import-objc-header "${ROOT_DIR}/engine/include/macframe/mf_ipc.h" \
     -I "${ROOT_DIR}/engine/include" \
     -L "${BUILD_DIR}" -lmacframe \
