@@ -17,7 +17,7 @@ Built natively on Metal and VideoToolbox, it requires no Python or VapourSynth s
 
 ### 1. Install
 
-> Requirements: Apple Silicon (M1–M4), macOS 15.0+, and [IINA](https://iina.io/) 1.4.x. No Homebrew, Python, or Xcode Command Line Tools required.
+> Requirements: Apple Silicon (M1–M4), macOS 15.0+, and [IINA](https://iina.io/) 1.5.x. No Homebrew, Python, or Xcode Command Line Tools required.
 
 **Option A: Drag-and-Drop DMG (Recommended)**
 1. Download the latest **`MacFrame-v*-macos.dmg`** from [Releases](https://github.com/pseudoomer/MacFrame/releases).

@@ -13,7 +13,7 @@ MacFrame is split into four decoupled layers connected via zero-latency `mmap` s
 
 ## Why Single-Dylib `libavfilter` Injection?
 
-IINA 1.4.3 ships with `libmpv.2.dylib` (mpv 0.38.0) compiled **without** VapourSynth (`vf_vapoursynth` is absent) and **with** `AV_PIX_FMT_VIDEOTOOLBOX` hardware interop enabled in `f_lavfi.c`. By building FFmpeg 7.0.1's `libavfilter.10.dylib` with the exact configure flags embedded in IINA's binary and linking directly against IINA's bundled sibling libraries (`libavutil.59.dylib`, `libavcodec.61.dylib`, etc.), MacFrame:
+IINA 1.5.x ships with `libmpv.2.dylib` compiled **without** VapourSynth (`vf_vapoursynth` is absent) and **with** `AV_PIX_FMT_VIDEOTOOLBOX` hardware interop enabled in `f_lavfi.c`. By building FFmpeg 9.0.1's `libavfilter.12.dylib` with the exact configure flags embedded in IINA's binary and linking directly against IINA's bundled sibling libraries (`libavutil.61.dylib`, `libavcodec.63.dylib`, etc.), MacFrame:
 
 - Requires **zero external dependencies** at runtime (no Homebrew, no Python, no VapourSynth, no Xcode Command Line Tools).
 - Preserves **100% zero-copy GPU execution** (`videotoolbox[nv12]` / `videotoolbox[p010]`).

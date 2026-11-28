@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // mf_autohook.mm — Automatic in-process libmpv controller for IINA.
-// Loaded automatically when IINA maps libavfilter.10.dylib -> libmacframe.dylib.
+// Loaded automatically when IINA maps libavfilter.12.dylib -> libmacframe.dylib.
 // Hooks IINA's Mach-O GOT entries for libmpv so MacFrame.app can enable/disable
 // and control frame interpolation in real time without requiring IINA plugins
 // or manual IINA filter configuration. When disabled, restores 100% of the

@@ -13,13 +13,13 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
-      - name: Install dependencies and IINA
+      - name: Install dependencies and latest IINA
         run: |
           brew install cmake ninja pkg-config nasm \
-            libass rubberband libvidstab zeromq zimg fontconfig freetype \
-            frei0r gnutls libbluray dav1d snappy speex libsoxr webp jpeg-xl libsamplerate
+            libass rubberband zimg fontconfig freetype fribidi harfbuzz \
+            libbs2b dav1d speex libsoxr webp jpeg-xl libvorbis svt-av1
           brew install --cask iina
-          test -d /Applications/IINA.app/Contents/Frameworks
+          test -f /Applications/IINA.app/Contents/Frameworks/libavfilter.12.dylib
       - name: Build Patched FFmpeg libavfilter for IINA
         run: ./scripts/build-ffmpeg-iina.sh /Applications/IINA.app
       - name: Build Engine and Self-Contained MacFrame.app
@@ -33,12 +33,12 @@ jobs:
           ZIP_OUT="MacFrame-${TAG}-macos.zip"
 
           # 1. Verify self-contained MacFrame.app completeness & ABI before packaging
-          test -f dist/libavfilter.10.dylib
+          test -f dist/libavfilter.12.dylib
           test -f dist/libmacframe.dylib
-          test -f dist/MacFrame.app/Contents/Resources/dist/libavfilter.10.dylib
+          test -f dist/MacFrame.app/Contents/Resources/dist/libavfilter.12.dylib
           test -f dist/MacFrame.app/Contents/Resources/dist/libmacframe.dylib
           test -x dist/MacFrame.app/Contents/Resources/installer/macframe-install.sh
-          ./scripts/verify-abi.sh dist/libavfilter.10.dylib /Applications/IINA.app
+          ./scripts/verify-abi.sh dist/libavfilter.12.dylib /Applications/IINA.app
 
           # 2. Build drag-to-Applications DMG (primary macOS installer)
           ./scripts/build-dmg.sh "${TAG}" "${DMG_OUT}"
@@ -46,7 +46,7 @@ jobs:
           # 3. Build ZIP archive (includes CLI tools, scripts, and docs)
           PKG="release-pkg/MacFrame"
           mkdir -p "${PKG}/dist" "${PKG}/scripts"
-          cp -a dist/MacFrame.app dist/libmacframe.dylib dist/libmacframe.1.dylib dist/libavfilter.10.dylib "${PKG}/dist/"
+          cp -a dist/MacFrame.app dist/libmacframe.dylib dist/libmacframe.1.dylib dist/libavfilter.12.dylib "${PKG}/dist/"
           cp -f scripts/verify-abi.sh "${PKG}/scripts/verify-abi.sh"
           chmod +x "${PKG}/scripts/verify-abi.sh"
           cp -R build/mfbench installer iina-plugin docs LICENSE README.md README.zh-CN.md "Install MacFrame.command" "Uninstall MacFrame.command" "${PKG}/"

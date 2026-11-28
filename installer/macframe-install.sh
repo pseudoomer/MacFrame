@@ -35,8 +35,8 @@ IINA_VER="$(defaults read "${TARGET_APP}/Contents/Info.plist" CFBundleShortVersi
 echo "=== MacFrame Installer for IINA (Target: ${TARGET_APP}, Version: ${IINA_VER}) ==="
 
 FW_DIR="${TARGET_APP}/Contents/Frameworks"
-if [[ ! -f "${FW_DIR}/libavfilter.10.dylib" || ! -f "${FW_DIR}/libavutil.59.dylib" ]]; then
-    echo "[ERROR] Unsupported IINA FFmpeg ABI in ${FW_DIR} (expected libavfilter.10.dylib / FFmpeg 7.0.x)."
+if [[ ! -f "${FW_DIR}/libavfilter.12.dylib" || ! -f "${FW_DIR}/libavutil.61.dylib" ]]; then
+    echo "[ERROR] Unsupported IINA FFmpeg ABI in ${FW_DIR} (expected IINA 1.5.x / libavfilter.12.dylib). Please update IINA to the latest version."
     exit 1
 fi
 
@@ -64,16 +64,16 @@ if [[ -z "${LIBMACFRAME_SRC}" ]]; then
     fi
 fi
 
-# Locate prebuilt patched libavfilter.10.dylib (dist -> build from source)
+# Locate prebuilt patched libavfilter.12.dylib (dist -> build from source)
 AVFILTER_SRC=""
-if [[ -f "${ROOT_DIR}/dist/libavfilter.10.dylib" ]]; then
-    AVFILTER_SRC="${ROOT_DIR}/dist/libavfilter.10.dylib"
+if [[ -f "${ROOT_DIR}/dist/libavfilter.12.dylib" ]]; then
+    AVFILTER_SRC="${ROOT_DIR}/dist/libavfilter.12.dylib"
 elif [[ -x "${ROOT_DIR}/scripts/build-ffmpeg-iina.sh" ]]; then
-    echo "Building patched FFmpeg 7.0.1 libavfilter.10.dylib from source..."
+    echo "Building patched FFmpeg 9.0.1 libavfilter.12.dylib from source..."
     "${ROOT_DIR}/scripts/build-ffmpeg-iina.sh" "${TARGET_APP}"
-    AVFILTER_SRC="${ROOT_DIR}/dist/libavfilter.10.dylib"
+    AVFILTER_SRC="${ROOT_DIR}/dist/libavfilter.12.dylib"
 else
-    echo "[ERROR] Prebuilt dist/libavfilter.10.dylib not found under ${ROOT_DIR}."
+    echo "[ERROR] Prebuilt dist/libavfilter.12.dylib not found under ${ROOT_DIR}."
     echo "Please download a complete MacFrame release archive or build from source."
     exit 1
 fi
@@ -86,20 +86,20 @@ fi
 # 1. Backup original files before modifying signature (never overwrite existing pristine backup)
 BACKUP_DIR="${HOME}/Library/Application Support/MacFrame/backup/${IINA_VER}"
 mkdir -p "${BACKUP_DIR}"
-if [[ ! -f "${BACKUP_DIR}/libavfilter.10.dylib.orig" ]]; then
+if [[ ! -f "${BACKUP_DIR}/libavfilter.12.dylib.orig" ]]; then
     echo "Backing up original IINA files to ${BACKUP_DIR}..."
-    cp -p "${FW_DIR}/libavfilter.10.dylib" "${BACKUP_DIR}/libavfilter.10.dylib.orig"
+    cp -p "${FW_DIR}/libavfilter.12.dylib" "${BACKUP_DIR}/libavfilter.12.dylib.orig"
     cp -p "${TARGET_APP}/Contents/MacOS/IINA" "${BACKUP_DIR}/IINA.orig"
     cp -p "${TARGET_APP}/Contents/MacOS/iina-cli" "${BACKUP_DIR}/iina-cli.orig"
     cp -p "${TARGET_APP}/Contents/MacOS/iina-plugin" "${BACKUP_DIR}/iina-plugin.orig"
     cp -Rp "${TARGET_APP}/Contents/_CodeSignature" "${BACKUP_DIR}/_CodeSignature.orig"
-    shasum -a 256 "${BACKUP_DIR}/libavfilter.10.dylib.orig" > "${BACKUP_DIR}/sha256.txt"
+    shasum -a 256 "${BACKUP_DIR}/libavfilter.12.dylib.orig" > "${BACKUP_DIR}/sha256.txt"
 else
     echo "Existing pristine backup found at ${BACKUP_DIR}"
 fi
 
-# 2. Install libmacframe.dylib and patched libavfilter.10.dylib into IINA Frameworks
-echo "Installing libmacframe.dylib and patched libavfilter.10.dylib..."
+# 2. Install libmacframe.dylib and patched libavfilter.12.dylib into IINA Frameworks
+echo "Installing libmacframe.dylib and patched libavfilter.12.dylib..."
 cp -f "${LIBMACFRAME_SRC}" "${FW_DIR}/libmacframe.dylib"
 chmod 755 "${FW_DIR}/libmacframe.dylib"
 xattr -c "${FW_DIR}/libmacframe.dylib" 2>/dev/null || true
@@ -111,14 +111,14 @@ if xcode-select -p >/dev/null 2>&1; then
 fi
 ln -sf "libmacframe.dylib" "${FW_DIR}/libmacframe.1.dylib"
 
-cp -f "${AVFILTER_SRC}" "${FW_DIR}/libavfilter.10.dylib"
-chmod 755 "${FW_DIR}/libavfilter.10.dylib"
-xattr -c "${FW_DIR}/libavfilter.10.dylib" 2>/dev/null || true
+cp -f "${AVFILTER_SRC}" "${FW_DIR}/libavfilter.12.dylib"
+chmod 755 "${FW_DIR}/libavfilter.12.dylib"
+xattr -c "${FW_DIR}/libavfilter.12.dylib" 2>/dev/null || true
 
 # 3. Re-sign modified binaries and top-level bundle (without touching unmodified Frameworks)
 echo "Re-signing ${TARGET_APP} (ad-hoc signature)..."
 codesign --force -s - "${FW_DIR}/libmacframe.dylib"
-codesign --force -s - "${FW_DIR}/libavfilter.10.dylib"
+codesign --force -s - "${FW_DIR}/libavfilter.12.dylib"
 codesign --force -s - "${TARGET_APP}/Contents/MacOS/iina-cli"
 codesign --force -s - "${TARGET_APP}/Contents/MacOS/iina-plugin"
 codesign --force -s - "${TARGET_APP}"
@@ -177,8 +177,8 @@ if [[ -n "${APP_SRC}" ]]; then
         if [[ -f "${INSTALLED_APP}/Contents/Resources/dist/libmacframe.dylib" ]]; then
             codesign --force --sign - "${INSTALLED_APP}/Contents/Resources/dist/libmacframe.dylib"
         fi
-        if [[ -f "${INSTALLED_APP}/Contents/Resources/dist/libavfilter.10.dylib" ]]; then
-            codesign --force --sign - "${INSTALLED_APP}/Contents/Resources/dist/libavfilter.10.dylib"
+        if [[ -f "${INSTALLED_APP}/Contents/Resources/dist/libavfilter.12.dylib" ]]; then
+            codesign --force --sign - "${INSTALLED_APP}/Contents/Resources/dist/libavfilter.12.dylib"
         fi
         codesign --force --sign - "${INSTALLED_APP}"
         echo "  [OK] Installed standalone control app to ${INSTALLED_APP}"

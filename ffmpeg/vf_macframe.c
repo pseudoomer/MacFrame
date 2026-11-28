@@ -25,7 +25,6 @@
 #include "libavutil/pixdesc.h"
 #include "avfilter.h"
 #include "filters.h"
-#include "internal.h"
 #include "video.h"
 
 /* --- MacFrame Engine C ABI (matched to engine/include/macframe/macframe.h) --- */
@@ -313,6 +312,8 @@ static int macframe_config_output(AVFilterLink *outlink)
     AVFilterContext *avctx = outlink->src;
     MacFrameContext *s = avctx->priv;
     AVFilterLink *inlink = avctx->inputs[0];
+    FilterLink *inl = ff_filter_link(inlink);
+    FilterLink *outl = ff_filter_link(outlink);
     int err;
     double target_fps;
     uint32_t cv_pixfmt = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
@@ -321,8 +322,8 @@ static int macframe_config_output(AVFilterLink *outlink)
     outlink->h = inlink->h;
     outlink->sample_aspect_ratio = inlink->sample_aspect_ratio;
 
-    s->in_fps = (inlink->frame_rate.num > 0 && inlink->frame_rate.den > 0)
-                    ? av_q2d(inlink->frame_rate)
+    s->in_fps = (inl->frame_rate.num > 0 && inl->frame_rate.den > 0)
+                    ? av_q2d(inl->frame_rate)
                     : 24.0;
     target_fps = (s->fps > 1.0) ? s->fps : 120.0;
     if (s->ipc_state && s->ipc_state->max_fps_cap >= 24.0) {
@@ -336,33 +337,35 @@ static int macframe_config_output(AVFilterLink *outlink)
         }
     }
 
-    outlink->frame_rate = av_d2q(target_fps, 100000);
-    outlink->time_base  = av_inv_q(outlink->frame_rate);
+    outl->frame_rate   = av_d2q(target_fps, 100000);
+    outlink->time_base = av_inv_q(outl->frame_rate);
 
     if (inlink->format == AV_PIX_FMT_VIDEOTOOLBOX) {
         AVHWFramesContext *hw_in;
         AVHWFramesContext *hw_out;
-        if (!inlink->hw_frames_ctx) {
+        if (!inl->hw_frames_ctx) {
             av_log(avctx, AV_LOG_ERROR, "macframe requires hw_frames_ctx for videotoolbox input\n");
             return AVERROR(EINVAL);
         }
-        hw_in = (AVHWFramesContext *)inlink->hw_frames_ctx->data;
-        av_buffer_unref(&outlink->hw_frames_ctx);
-        outlink->hw_frames_ctx = av_hwframe_ctx_alloc(hw_in->device_ref);
-        if (!outlink->hw_frames_ctx)
+        hw_in = (AVHWFramesContext *)inl->hw_frames_ctx->data;
+        av_buffer_unref(&outl->hw_frames_ctx);
+        outl->hw_frames_ctx = av_hwframe_ctx_alloc(hw_in->device_ref);
+        if (!outl->hw_frames_ctx)
             return AVERROR(ENOMEM);
 
-        hw_out = (AVHWFramesContext *)outlink->hw_frames_ctx->data;
+        hw_out = (AVHWFramesContext *)outl->hw_frames_ctx->data;
         hw_out->format    = AV_PIX_FMT_VIDEOTOOLBOX;
         hw_out->sw_format = hw_in->sw_format;
         hw_out->width     = outlink->w;
         hw_out->height    = outlink->h;
+        ((AVVTFramesContext *)hw_out->hwctx)->color_range =
+            ((AVVTFramesContext *)hw_in->hwctx)->color_range;
 
         err = ff_filter_init_hw_frames(avctx, outlink, 1);
         if (err < 0)
             return err;
 
-        err = av_hwframe_ctx_init(outlink->hw_frames_ctx);
+        err = av_hwframe_ctx_init(outl->hw_frames_ctx);
         if (err < 0) {
             av_log(avctx, AV_LOG_ERROR, "Failed to init videotoolbox out hw_frames_ctx\n");
             return err;
@@ -498,7 +501,7 @@ static AVFrame *wrap_output_cvpixelbuffer(AVFilterLink *outlink,
         out->width  = outlink->w;
         out->height = outlink->h;
         out->format = AV_PIX_FMT_VIDEOTOOLBOX;
-        out->hw_frames_ctx = av_buffer_ref(outlink->hw_frames_ctx);
+        out->hw_frames_ctx = av_buffer_ref(ff_filter_link(outlink)->hw_frames_ctx);
         out->buf[0] = av_buffer_create((uint8_t *)pixbuf,
                                        sizeof(CVPixelBufferRef),
                                        macframe_cvbuf_release,
@@ -705,18 +708,18 @@ static const AVFilterPad macframe_outputs[] = {
     },
 };
 
-const AVFilter ff_vf_macframe = {
-    .name           = "macframe",
-    .description    = NULL_IF_CONFIG_SMALL("Apple Silicon native real-time frame interpolation (MacFrame)"),
+const FFFilter ff_vf_macframe = {
+    .p.name         = "macframe",
+    .p.description  = NULL_IF_CONFIG_SMALL("Apple Silicon native real-time frame interpolation (MacFrame)"),
+    .p.priv_class   = &macframe_class,
+    .p.flags        = AVFILTER_FLAG_HWDEVICE,
     .priv_size      = sizeof(MacFrameContext),
-    .priv_class     = &macframe_class,
     .init           = macframe_init,
     .uninit         = macframe_uninit,
     .activate       = macframe_activate,
     FILTER_INPUTS(macframe_inputs),
     FILTER_OUTPUTS(macframe_outputs),
     FILTER_PIXFMTS_ARRAY(macframe_pix_fmts),
-    .flags          = AVFILTER_FLAG_HWDEVICE,
     .flags_internal = FF_FILTER_FLAG_HWFRAME_AWARE,
 };
 

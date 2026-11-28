@@ -47,8 +47,8 @@ chmod +x "${PAYLOAD_DIR}/scripts/verify-abi.sh"
 rm -rf "${PAYLOAD_DIR}/iina-plugin/MacFrame.iinaplugin"
 cp -R "${ROOT_DIR}/iina-plugin/MacFrame.iinaplugin" "${PAYLOAD_DIR}/iina-plugin/MacFrame.iinaplugin"
 cp -f "${DIST_DIR}/libmacframe.dylib" "${PAYLOAD_DIR}/dist/libmacframe.dylib"
-if [[ -f "${DIST_DIR}/libavfilter.10.dylib" ]]; then
-    cp -f "${DIST_DIR}/libavfilter.10.dylib" "${PAYLOAD_DIR}/dist/libavfilter.10.dylib"
+if [[ -f "${DIST_DIR}/libavfilter.12.dylib" ]]; then
+    cp -f "${DIST_DIR}/libavfilter.12.dylib" "${PAYLOAD_DIR}/dist/libavfilter.12.dylib"
 fi
 
 swiftc -O -parse-as-library -target arm64-apple-macosx15.0 "${ROOT_DIR}/app/MacFrameApp.swift" \
@@ -61,8 +61,8 @@ swiftc -O -parse-as-library -target arm64-apple-macosx15.0 "${ROOT_DIR}/app/MacF
 xattr -cr "${STAGE_BUNDLE}"
 codesign --force --sign - "${STAGE_BUNDLE}/Contents/Frameworks/libmacframe.1.0.0.dylib"
 codesign --force --sign - "${STAGE_BUNDLE}/Contents/Resources/dist/libmacframe.dylib"
-if [[ -f "${STAGE_BUNDLE}/Contents/Resources/dist/libavfilter.10.dylib" ]]; then
-    codesign --force --sign - "${STAGE_BUNDLE}/Contents/Resources/dist/libavfilter.10.dylib"
+if [[ -f "${STAGE_BUNDLE}/Contents/Resources/dist/libavfilter.12.dylib" ]]; then
+    codesign --force --sign - "${STAGE_BUNDLE}/Contents/Resources/dist/libavfilter.12.dylib"
 fi
 codesign --force --sign - "${STAGE_BUNDLE}"
 

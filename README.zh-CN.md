@@ -17,7 +17,7 @@
 
 ### 1. 安装
 
-> 环境要求：Apple Silicon（M1–M4）、macOS 15.0+、已安装 [IINA](https://iina.io/) 1.4.x。无需 Homebrew、Python 或 Xcode 命令行工具。
+> 环境要求：Apple Silicon（M1–M4）、macOS 15.0+、已安装 [IINA](https://iina.io/) 1.5.x。无需 Homebrew、Python 或 Xcode 命令行工具。
 
 **方式 A：DMG 拖拽安装（推荐）**
 1. 前往 [Releases](https://github.com/pseudoomer/MacFrame/releases) 下载最新的 **`MacFrame-v*-macos.dmg`**。

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ $# -lt 2 ]]; then
-    echo "Usage: $0 <path/to/new/libavfilter.10.dylib> <path/to/IINA.app>"
+    echo "Usage: $0 <path/to/new/libavfilter.12.dylib> <path/to/IINA.app>"
     exit 2
 fi
 
@@ -22,15 +22,15 @@ fi
 echo "=== Verifying ABI & Dependency Graph of $(basename "${NEW_DYLIB}") against ${IINA_APP} ==="
 
 # 0. Basic FFmpeg sibling presence check (works on stock macOS without Xcode Command Line Tools)
-for req in "libavutil.59.dylib" "libavcodec.61.dylib" "libavformat.61.dylib" "libswscale.8.dylib"; do
+for req in "libavutil.61.dylib" "libavcodec.63.dylib" "libavformat.63.dylib" "libswscale.10.dylib"; do
     if [[ ! -f "${FW_DIR}/${req}" ]]; then
-        echo "[FAIL] Unsupported IINA FFmpeg ABI: missing ${FW_DIR}/${req}"
+        echo "[FAIL] Unsupported IINA FFmpeg ABI: missing ${FW_DIR}/${req} (IINA 1.5.x / FFmpeg 9.0.x required)"
         exit 1
     fi
 done
 
 if ! xcode-select -p >/dev/null 2>&1; then
-    echo "  [OK] Core IINA FFmpeg 7.0.x libraries present."
+    echo "  [OK] Core IINA FFmpeg 9.0.x libraries present."
     echo "  [INFO] Xcode Command Line Tools not installed; skipping compiler-based deep verification."
     echo "=== Lightweight ABI Verification PASSED ==="
     exit 0
@@ -59,7 +59,7 @@ DEPS=$(otool -arch arm64 -L "${NEW_DYLIB}" | tail -n +2 | awk '{print $1}')
 for dep in ${DEPS}; do
     if [[ "${dep}" == @rpath/* ]]; then
         base="${dep#@rpath/}"
-        if [[ "${base}" != "libavfilter.10.dylib" && "${base}" != "libmacframe.dylib" && ! -f "${FW_DIR}/${base}" ]]; then
+        if [[ "${base}" != "libavfilter.12.dylib" && "${base}" != "libmacframe.dylib" && ! -f "${FW_DIR}/${base}" ]]; then
             echo "[FAIL] Dependency ${dep} does not exist in ${FW_DIR}"
             exit 1
         fi

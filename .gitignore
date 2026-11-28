@@ -4,6 +4,7 @@ out/
 dist/
 ffmpeg-build/
 ffmpeg-src/
+ffmpeg-src-*/
 
 # Local test media and scratch outputs
 media/

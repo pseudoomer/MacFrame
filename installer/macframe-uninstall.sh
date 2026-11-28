@@ -21,12 +21,17 @@ if [[ -f "${PLIST_PATH}" ]]; then
 fi
 rm -f "${HOME}/Library/Application Support/MacFrame/auto-reinject.sh"
 
-if [[ ! -f "${BACKUP_DIR}/libavfilter.10.dylib.orig" ]]; then
+AVFILTER_NAME="libavfilter.12.dylib"
+if [[ ! -f "${BACKUP_DIR}/${AVFILTER_NAME}.orig" && -f "${BACKUP_DIR}/libavfilter.10.dylib.orig" ]]; then
+    AVFILTER_NAME="libavfilter.10.dylib"
+fi
+
+if [[ ! -f "${BACKUP_DIR}/${AVFILTER_NAME}.orig" ]]; then
     if [[ ! -f "${FW_DIR}/libmacframe.dylib" ]]; then
         echo "IINA does not appear to have MacFrame injected, and no backup is needed."
         exit 0
     fi
-    echo "[ERROR] Backup not found at ${BACKUP_DIR}/libavfilter.10.dylib.orig"
+    echo "[ERROR] Backup not found at ${BACKUP_DIR}/${AVFILTER_NAME}.orig"
     echo "Please reinstall official IINA from https://iina.io to restore original binaries."
     exit 1
 fi
@@ -37,7 +42,7 @@ if [[ ! -w "${FW_DIR}" ]]; then
 fi
 
 echo "Restoring original IINA binaries and Developer ID signature..."
-cp -pf "${BACKUP_DIR}/libavfilter.10.dylib.orig" "${FW_DIR}/libavfilter.10.dylib"
+cp -pf "${BACKUP_DIR}/${AVFILTER_NAME}.orig" "${FW_DIR}/${AVFILTER_NAME}"
 if [[ -f "${BACKUP_DIR}/IINA.orig" ]]; then
     cp -pf "${BACKUP_DIR}/IINA.orig" "${TARGET_APP}/Contents/MacOS/IINA"
     cp -pf "${BACKUP_DIR}/iina-cli.orig" "${TARGET_APP}/Contents/MacOS/iina-cli"
@@ -56,13 +61,13 @@ if [[ -d "${PLUGIN_DST}" ]]; then
 fi
 
 ORIG_SHA="$(awk '{print $1}' "${BACKUP_DIR}/sha256.txt")"
-RESTORED_SHA="$(shasum -a 256 "${FW_DIR}/libavfilter.10.dylib" | awk '{print $1}')"
+RESTORED_SHA="$(shasum -a 256 "${FW_DIR}/${AVFILTER_NAME}" | awk '{print $1}')"
 if [[ "${ORIG_SHA}" != "${RESTORED_SHA}" ]]; then
     echo "[ERROR] SHA-256 mismatch after restore!"
     exit 1
 fi
 codesign --verify --deep --strict "${TARGET_APP}"
-echo "  [OK] Original libavfilter.10.dylib & original Apple Developer ID signature restored byte-for-byte (SHA-256: ${RESTORED_SHA:0:16}...)."
+echo "  [OK] Original ${AVFILTER_NAME} & original Apple Developer ID signature restored byte-for-byte (SHA-256: ${RESTORED_SHA:0:16}...)."
 
 RUNNING_PID="$(pgrep -f "${TARGET_APP}/Contents/MacOS/IINA" | head -n 1 || true)"
 if [[ -n "${RUNNING_PID}" ]]; then
