@@ -890,19 +890,20 @@ struct mf_engine {
             }
             [cb_in commit];
             [cb_in waitUntilCompleted];
+            if (cv_r0) { CFRelease(cv_r0); cv_r0 = nullptr; }
+            if (cv_r1) { CFRelease(cv_r1); cv_r1 = nullptr; }
+            CVMetalTextureCacheFlush(tex_cache, 0);
             if (need_flow) {
                 finalize_pair_flow_stats(f0.frame_id, f1.frame_id, guard_me_base);
             }
 
             size_t N = phases.size();
             std::vector<CVPixelBufferRef> rgha_outs(N, nullptr);
-            std::vector<CVMetalTextureRef> cv_ros(N, nullptr);
             NSMutableArray<NSNumber *> *ns_phases = [NSMutableArray arrayWithCapacity:N];
             NSMutableArray<VTFrameProcessorFrame *> *dst_frames = [NSMutableArray arrayWithCapacity:N];
 
             for (size_t i = 0; i < N; ++i) {
                 CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, rgha_pool, &rgha_outs[i]);
-                CVMetalTextureCacheCreateTextureFromImage(kCFAllocatorDefault, tex_cache, rgha_outs[i], nullptr, MTLPixelFormatRGBA16Float, cfg.width, cfg.height, 0, &cv_ros[i]);
                 [ns_phases addObject:@(phases[i])];
                 CMTime dt = CMTimeMake(int64_t(f0.frame_id * 1000 + std::llround(phases[i] * 1000.0)), 60000);
                 [dst_frames addObject:[[VTFrameProcessorFrame alloc] initWithBuffer:rgha_outs[i] presentationTimeStamp:dt]];
@@ -926,6 +927,8 @@ struct mf_engine {
             if (frc_ok) {
                 vt_last_f1_id = f1.frame_id;
                 std::vector<CVPixelBufferRef> dst_pbs(N, nullptr);
+                std::vector<CVMetalTextureRef> cv_ros(N, nullptr);
+                std::vector<FramePlanes> dps(N);
                 dst_pbs[0] = out_buf;
                 for (size_t i = 1; i < N; ++i) {
                     CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, out_pool, &dst_pbs[i]);
@@ -935,9 +938,9 @@ struct mf_engine {
                 id<MTLCommandBuffer> cb_out = [ctx.queue() commandBuffer];
                 id<MTLComputeCommandEncoder> enc_out = [cb_out computeCommandEncoder];
                 for (size_t i = 0; i < N; ++i) {
-                    if (!dst_pbs[i] || !cv_ros[i]) continue;
-                    FramePlanes dp;
-                    if (!bind_pixel_buffer(tex_cache, dst_pbs[i], dp)) continue;
+                    if (!dst_pbs[i] || !rgha_outs[i]) continue;
+                    CVMetalTextureCacheCreateTextureFromImage(kCFAllocatorDefault, tex_cache, rgha_outs[i], nullptr, MTLPixelFormatRGBA16Float, cfg.width, cfg.height, 0, &cv_ros[i]);
+                    if (!cv_ros[i] || !bind_pixel_buffer(tex_cache, dst_pbs[i], dps[i])) continue;
                     SynthParams sp_i = make_synth_params(phases[i], tp.tier, cs);
                     [enc_out setTexture:CVMetalTextureGetTexture(cv_ros[i]) atIndex:0];
                     [enc_out setTexture:p0.tex0 atIndex:1];
@@ -945,14 +948,18 @@ struct mf_engine {
                     [enc_out setTexture:p1.tex0 atIndex:3];
                     [enc_out setTexture:p1.tex1 atIndex:4];
                     [enc_out setTexture:vis_conf[guard_me_base] atIndex:5];
-                    [enc_out setTexture:dp.tex0 atIndex:6];
-                    [enc_out setTexture:dp.tex1 atIndex:7];
+                    [enc_out setTexture:dps[i].tex0 atIndex:6];
+                    [enc_out setTexture:dps[i].tex1 atIndex:7];
                     [enc_out setBytes:&sp_i length:sizeof(sp_i) atIndex:0];
                     ctx.dispatch2D(enc_out, ctx.pso_rgba16f_to_yuv_guarded, sp_i.uv_size[0], sp_i.uv_size[1]);
                 }
                 [enc_out endEncoding];
                 [cb_out commit];
                 [cb_out waitUntilCompleted];
+                for (size_t i = 0; i < N; ++i) {
+                    if (cv_ros[i]) CFRelease(cv_ros[i]);
+                }
+                CVMetalTextureCacheFlush(tex_cache, 0);
 
                 vt_cached_f0 = f0.frame_id;
                 vt_cached_f1 = f1.frame_id;
@@ -964,12 +971,9 @@ struct mf_engine {
                 }
             }
 
-            if (cv_r0) CFRelease(cv_r0);
-            if (cv_r1) CFRelease(cv_r1);
             if (rgha0) CVPixelBufferRelease(rgha0);
             if (rgha1) CVPixelBufferRelease(rgha1);
             for (size_t i = 0; i < N; ++i) {
-                if (cv_ros[i]) CFRelease(cv_ros[i]);
                 if (rgha_outs[i]) CVPixelBufferRelease(rgha_outs[i]);
             }
 

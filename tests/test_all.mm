@@ -250,6 +250,8 @@ static int test_engine_gpu() {
     return 0;
 }
 
+static double calc_psnr_region(CVPixelBufferRef a, CVPixelBufferRef b, int x0, int y0, int x1, int y1);
+
 static int test_ipc_sync() {
     printf("[4/4] Testing Shared-Memory IPC & Live Engine Config Sync...\n");
     mf_ipc_state *ipc = mf_ipc_open();
@@ -264,6 +266,8 @@ static int test_ipc_sync() {
     ipc->max_fps_cap = 90.0;
     ipc->smoothness = 0.75f;
     ipc->artifact_guard = 0.85f;
+    ipc->ab_mode = 2;
+    ipc->ab_split = 0.35f;
     ipc->config_seq++;
     mf_ipc_write_plugin_json(ipc);
 
@@ -282,6 +286,9 @@ static int test_ipc_sync() {
 
     CVPixelBufferRef out = nullptr;
     REQUIRE(mf_engine_interpolate_pair(eng, f0, f1, 0.5f, &out, nullptr) == MF_OK);
+    // Verify live IPC ab_mode=2 (Right Orig) synced into engine
+    double psnr_orig = calc_psnr_region(out, f0, 140, 48, 300, 160);
+    REQUIRE(psnr_orig > 60.0);
     CVPixelBufferRelease(out);
 
     REQUIRE(ipc->active_pid > 0);

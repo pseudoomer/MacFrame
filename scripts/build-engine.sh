@@ -55,6 +55,7 @@ swiftc -O -parse-as-library -target arm64-apple-macosx26.0 "${ROOT_DIR}/app/MacF
     -import-objc-header "${ROOT_DIR}/engine/include/macframe/mf_ipc.h" \
     -I "${ROOT_DIR}/engine/include" \
     -L "${BUILD_DIR}" -lmacframe \
+    -framework Carbon -framework ServiceManagement \
     -Xlinker -rpath -Xlinker "@executable_path/../Frameworks" \
     -o "${STAGE_BUNDLE}/Contents/MacOS/MacFrame"
 
