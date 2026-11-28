@@ -7,6 +7,7 @@
 
 #include <CoreVideo/CoreVideo.h>
 #include <VideoToolbox/VideoToolbox.h>
+#include <arm_neon.h>
 #include <dlfcn.h>
 #include <math.h>
 #include <stdbool.h>
@@ -19,6 +20,7 @@
 #include "libavutil/buffer.h"
 #include "libavutil/hwcontext.h"
 #include "libavutil/hwcontext_videotoolbox.h"
+#include "libavutil/mastering_display_metadata.h"
 #include "libavutil/mathematics.h"
 #include "libavutil/mem.h"
 #include "libavutil/opt.h"
@@ -27,8 +29,8 @@
 #include "filters.h"
 #include "video.h"
 
-/* --- MacFrame Engine C ABI (matched to engine/include/macframe/macframe.h) --- */
-#define MF_ABI_VERSION 1u
+/* --- MacFrame Engine C ABI v2 (matched to engine/include/macframe/macframe.h & mf_ipc.h) --- */
+#define MF_ABI_VERSION 2u
 #define MF_OK          0
 #define MF_EAGAIN      1
 #define MF_EOF         2
@@ -68,6 +70,8 @@ typedef struct mf_config {
     int        letterbox_guard;
     int        governor;
     int        debug_osd;
+    int        ab_mode;
+    float      ab_split;
 } mf_config;
 
 typedef struct mf_stats {
@@ -84,6 +88,7 @@ typedef struct mf_stats {
     float      global_blend_alpha;
     int        letterbox_top;
     int        letterbox_bottom;
+    int        is_hdr;
 } mf_stats;
 
 typedef void       (*mf_config_init_default_fn)(mf_config *, mf_preset);
@@ -114,10 +119,20 @@ typedef struct mf_ipc_state {
     int32_t  letterbox_guard;
     int32_t  governor;
     int32_t  debug_osd;
+    int32_t  ab_mode;
+    float    ab_split;
 } mf_ipc_state;
 
 typedef mf_ipc_state *(*mf_ipc_open_fn)(void);
 typedef void          (*mf_ipc_close_fn)(mf_ipc_state *);
+
+#define TMPL_RING_SIZE 8
+
+typedef struct TemplateEntry {
+    AVFrame *frame;
+    double   pts_sec;
+    bool     valid;
+} TemplateEntry;
 
 typedef struct MacFrameContext {
     const AVClass *class;
@@ -135,6 +150,8 @@ typedef struct MacFrameContext {
     int    letterbox;
     int    governor;
     int    osd;
+    int    ab_mode;
+    float  ab_split;
     char  *lib_path;
 
     /* Dynamic library & function pointers */
@@ -161,7 +178,8 @@ typedef struct MacFrameContext {
     uint64_t   in_count;
     double     in_fps;
 
-    AVFrame   *template_frame;
+    TemplateEntry tmpl_ring[TMPL_RING_SIZE];
+    int           tmpl_head;
 } MacFrameContext;
 
 static void macframe_cvbuf_release(void *opaque, uint8_t *data)
@@ -264,10 +282,14 @@ static bool load_engine_dylib(AVFilterContext *avctx, MacFrameContext *s)
 static av_cold int macframe_init(AVFilterContext *avctx)
 {
     MacFrameContext *s = avctx->priv;
+    int i;
     s->last_in_pts = AV_NOPTS_VALUE;
-    s->template_frame = av_frame_alloc();
-    if (!s->template_frame)
-        return AVERROR(ENOMEM);
+    for (i = 0; i < TMPL_RING_SIZE; ++i) {
+        s->tmpl_ring[i].frame = av_frame_alloc();
+        s->tmpl_ring[i].valid = false;
+        if (!s->tmpl_ring[i].frame)
+            return AVERROR(ENOMEM);
+    }
 
     if (!load_engine_dylib(avctx, s)) {
         s->passthrough_fallback = true;
@@ -280,6 +302,7 @@ static av_cold int macframe_init(AVFilterContext *avctx)
 static av_cold void macframe_uninit(AVFilterContext *avctx)
 {
     MacFrameContext *s = avctx->priv;
+    int i;
     if (s->ipc_state && s->fn_ipc_close) {
         s->fn_ipc_close(s->ipc_state);
         s->ipc_state = NULL;
@@ -304,7 +327,25 @@ static av_cold void macframe_uninit(AVFilterContext *avctx)
         dlclose(s->dl_handle);
         s->dl_handle = NULL;
     }
-    av_frame_free(&s->template_frame);
+    for (i = 0; i < TMPL_RING_SIZE; ++i) {
+        av_frame_free(&s->tmpl_ring[i].frame);
+    }
+}
+
+static const AVFrame *find_template_for_pts(const MacFrameContext *s, double pts_sec)
+{
+    const AVFrame *best = NULL;
+    double best_dt = 1e30;
+    int i;
+    for (i = 0; i < TMPL_RING_SIZE; ++i) {
+        if (!s->tmpl_ring[i].valid) continue;
+        double dt = fabs(s->tmpl_ring[i].pts_sec - pts_sec);
+        if (dt < best_dt) {
+            best_dt = dt;
+            best = s->tmpl_ring[i].frame;
+        }
+    }
+    return best;
 }
 
 static int macframe_config_output(AVFilterLink *outlink)
@@ -321,6 +362,8 @@ static int macframe_config_output(AVFilterLink *outlink)
     outlink->w = inlink->w;
     outlink->h = inlink->h;
     outlink->sample_aspect_ratio = inlink->sample_aspect_ratio;
+    outlink->colorspace = inlink->colorspace;
+    outlink->color_range = inlink->color_range;
 
     s->in_fps = (inl->frame_rate.num > 0 && inl->frame_rate.den > 0)
                     ? av_q2d(inl->frame_rate)
@@ -372,10 +415,20 @@ static int macframe_config_output(AVFilterLink *outlink)
         }
 
         if (hw_in->sw_format == AV_PIX_FMT_P010LE || hw_in->sw_format == AV_PIX_FMT_P010BE) {
-            cv_pixfmt = kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange;
+            cv_pixfmt = (inlink->color_range == AVCOL_RANGE_JPEG)
+                ? kCVPixelFormatType_420YpCbCr10BiPlanarFullRange
+                : kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange;
         } else if (hw_in->sw_format == AV_PIX_FMT_BGRA) {
             cv_pixfmt = kCVPixelFormatType_32BGRA;
+        } else if (inlink->color_range == AVCOL_RANGE_JPEG) {
+            cv_pixfmt = kCVPixelFormatType_420YpCbCr8BiPlanarFullRange;
         }
+    } else if (inlink->format == AV_PIX_FMT_P010LE || inlink->format == AV_PIX_FMT_YUV420P10LE) {
+        cv_pixfmt = (inlink->color_range == AVCOL_RANGE_JPEG)
+            ? kCVPixelFormatType_420YpCbCr10BiPlanarFullRange
+            : kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange;
+    } else if (inlink->color_range == AVCOL_RANGE_JPEG) {
+        cv_pixfmt = kCVPixelFormatType_420YpCbCr8BiPlanarFullRange;
     }
 
     if (!s->passthrough_fallback && s->fn_create) {
@@ -405,6 +458,8 @@ static int macframe_config_output(AVFilterLink *outlink)
         cfg.letterbox_guard = s->letterbox;
         cfg.governor        = s->governor;
         cfg.debug_osd       = s->osd;
+        cfg.ab_mode         = s->ab_mode;
+        cfg.ab_split        = s->ab_split;
 
         s->engine = s->fn_create(&cfg, errbuf, sizeof(errbuf));
         if (!s->engine) {
@@ -427,16 +482,83 @@ static int macframe_config_output(AVFilterLink *outlink)
     return 0;
 }
 
-static CVPixelBufferRef sw_frame_to_cvpixelbuffer(const AVFrame *in)
+static inline void write_be16(uint8_t *p, uint16_t v)
 {
-    OSType fmt = (in->format == AV_PIX_FMT_P010LE)
-                     ? kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange
-                     : kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange;
+    p[0] = (uint8_t)(v >> 8);
+    p[1] = (uint8_t)(v & 0xff);
+}
+
+static inline void write_be32(uint8_t *p, uint32_t v)
+{
+    p[0] = (uint8_t)(v >> 24);
+    p[1] = (uint8_t)((v >> 16) & 0xff);
+    p[2] = (uint8_t)((v >> 8) & 0xff);
+    p[3] = (uint8_t)(v & 0xff);
+}
+
+static void attach_hdr_side_data(AVFilterContext *avctx, CVPixelBufferRef pb, const AVFrame *in)
+{
+    const AVFrameSideData *sd_md;
+    const AVFrameSideData *sd_cll;
+
+    av_vt_pixbuf_set_attachments(avctx, pb, in);
+
+    sd_md = av_frame_get_side_data(in, AV_FRAME_DATA_MASTERING_DISPLAY_METADATA);
+    if (sd_md && sd_md->size >= sizeof(AVMasteringDisplayMetadata)) {
+        const AVMasteringDisplayMetadata *md = (const AVMasteringDisplayMetadata *)sd_md->data;
+        if (md->has_primaries && md->has_luminance) {
+            uint8_t buf[24];
+            /* SMPTE ST 2086: G, B, R, White Point (in 0.00002), max_lum, min_lum (in 0.0001) */
+            const int order[3] = { 1, 2, 0 };
+            int i;
+            for (i = 0; i < 3; ++i) {
+                int idx = order[i];
+                uint16_t gx = (uint16_t)llround(av_q2d(md->display_primaries[idx][0]) * 50000.0);
+                uint16_t gy = (uint16_t)llround(av_q2d(md->display_primaries[idx][1]) * 50000.0);
+                write_be16(buf + i * 4 + 0, gx);
+                write_be16(buf + i * 4 + 2, gy);
+            }
+            write_be16(buf + 12, (uint16_t)llround(av_q2d(md->white_point[0]) * 50000.0));
+            write_be16(buf + 14, (uint16_t)llround(av_q2d(md->white_point[1]) * 50000.0));
+            write_be32(buf + 16, (uint32_t)llround(av_q2d(md->max_luminance) * 10000.0));
+            write_be32(buf + 20, (uint32_t)llround(av_q2d(md->min_luminance) * 10000.0));
+
+            CFDataRef data = CFDataCreate(kCFAllocatorDefault, buf, sizeof(buf));
+            if (data) {
+                CVBufferSetAttachment(pb, kCVImageBufferMasteringDisplayColorVolumeKey,
+                                      data, kCVAttachmentMode_ShouldPropagate);
+                CFRelease(data);
+            }
+        }
+    }
+
+    sd_cll = av_frame_get_side_data(in, AV_FRAME_DATA_CONTENT_LIGHT_LEVEL);
+    if (sd_cll && sd_cll->size >= sizeof(AVContentLightMetadata)) {
+        const AVContentLightMetadata *cll = (const AVContentLightMetadata *)sd_cll->data;
+        uint8_t buf[4];
+        write_be16(buf + 0, (uint16_t)cll->MaxCLL);
+        write_be16(buf + 2, (uint16_t)cll->MaxFALL);
+        CFDataRef data = CFDataCreate(kCFAllocatorDefault, buf, sizeof(buf));
+        if (data) {
+            CVBufferSetAttachment(pb, kCVImageBufferContentLightLevelInfoKey,
+                                  data, kCVAttachmentMode_ShouldPropagate);
+            CFRelease(data);
+        }
+    }
+}
+
+static CVPixelBufferRef sw_frame_to_cvpixelbuffer(AVFilterContext *avctx, const AVFrame *in)
+{
+    bool is_10bit = (in->format == AV_PIX_FMT_P010LE || in->format == AV_PIX_FMT_YUV420P10LE);
+    bool is_full = (in->color_range == AVCOL_RANGE_JPEG);
+    OSType fmt = is_10bit
+        ? (is_full ? kCVPixelFormatType_420YpCbCr10BiPlanarFullRange : kCVPixelFormatType_420YpCbCr10BiPlanarVideoRange)
+        : (is_full ? kCVPixelFormatType_420YpCbCr8BiPlanarFullRange  : kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange);
     CFMutableDictionaryRef attrs;
     CFMutableDictionaryRef io_attrs;
     CVPixelBufferRef pb = NULL;
     CVReturn cr;
-    int bpp, y;
+    int y;
     uint8_t *dst_y, *dst_uv;
     size_t stride_y, stride_uv;
 
@@ -453,31 +575,70 @@ static CVPixelBufferRef sw_frame_to_cvpixelbuffer(const AVFrame *in)
     if (cr != kCVReturnSuccess || !pb) return NULL;
 
     CVPixelBufferLockBaseAddress(pb, 0);
-    bpp = (in->format == AV_PIX_FMT_P010LE) ? 2 : 1;
     dst_y = (uint8_t *)CVPixelBufferGetBaseAddressOfPlane(pb, 0);
     stride_y = CVPixelBufferGetBytesPerRowOfPlane(pb, 0);
-    for (y = 0; y < in->height; ++y) {
-        memcpy(dst_y + y * stride_y, in->data[0] + y * in->linesize[0], (size_t)in->width * bpp);
-    }
     dst_uv = (uint8_t *)CVPixelBufferGetBaseAddressOfPlane(pb, 1);
     stride_uv = CVPixelBufferGetBytesPerRowOfPlane(pb, 1);
-    if (in->format == AV_PIX_FMT_YUV420P) {
+
+    if (in->format == AV_PIX_FMT_YUV420P10LE) {
         int x;
+        for (y = 0; y < in->height; ++y) {
+            const uint16_t *sy = (const uint16_t *)(in->data[0] + y * in->linesize[0]);
+            uint16_t *dy = (uint16_t *)(dst_y + y * stride_y);
+            for (x = 0; x + 8 <= in->width; x += 8) {
+                uint16x8_t v = vld1q_u16(sy + x);
+                vst1q_u16(dy + x, vshlq_n_u16(v, 6));
+            }
+            for (; x < in->width; ++x) dy[x] = (uint16_t)(sy[x] << 6);
+        }
         for (y = 0; y < in->height / 2; ++y) {
-            const uint8_t *src_u = in->data[1] + y * in->linesize[1];
-            const uint8_t *src_v = in->data[2] + y * in->linesize[2];
-            uint8_t *row_uv = dst_uv + y * stride_uv;
-            for (x = 0; x < in->width / 2; ++x) {
-                row_uv[2 * x + 0] = src_u[x];
-                row_uv[2 * x + 1] = src_v[x];
+            const uint16_t *su = (const uint16_t *)(in->data[1] + y * in->linesize[1]);
+            const uint16_t *sv = (const uint16_t *)(in->data[2] + y * in->linesize[2]);
+            uint16_t *duv = (uint16_t *)(dst_uv + y * stride_uv);
+            int half_w = in->width / 2;
+            for (x = 0; x + 8 <= half_w; x += 8) {
+                uint16x8x2_t pair;
+                pair.val[0] = vshlq_n_u16(vld1q_u16(su + x), 6);
+                pair.val[1] = vshlq_n_u16(vld1q_u16(sv + x), 6);
+                vst2q_u16(duv + x * 2, pair);
+            }
+            for (; x < half_w; ++x) {
+                duv[2 * x + 0] = (uint16_t)(su[x] << 6);
+                duv[2 * x + 1] = (uint16_t)(sv[x] << 6);
+            }
+        }
+    } else if (in->format == AV_PIX_FMT_YUV420P) {
+        int x;
+        for (y = 0; y < in->height; ++y) {
+            memcpy(dst_y + y * stride_y, in->data[0] + y * in->linesize[0], (size_t)in->width);
+        }
+        for (y = 0; y < in->height / 2; ++y) {
+            const uint8_t *su = in->data[1] + y * in->linesize[1];
+            const uint8_t *sv = in->data[2] + y * in->linesize[2];
+            uint8_t *duv = dst_uv + y * stride_uv;
+            int half_w = in->width / 2;
+            for (x = 0; x + 16 <= half_w; x += 16) {
+                uint8x16x2_t pair;
+                pair.val[0] = vld1q_u8(su + x);
+                pair.val[1] = vld1q_u8(sv + x);
+                vst2q_u8(duv + x * 2, pair);
+            }
+            for (; x < half_w; ++x) {
+                duv[2 * x + 0] = su[x];
+                duv[2 * x + 1] = sv[x];
             }
         }
     } else {
+        int bpp = (in->format == AV_PIX_FMT_P010LE) ? 2 : 1;
+        for (y = 0; y < in->height; ++y) {
+            memcpy(dst_y + y * stride_y, in->data[0] + y * in->linesize[0], (size_t)in->width * bpp);
+        }
         for (y = 0; y < in->height / 2; ++y) {
             memcpy(dst_uv + y * stride_uv, in->data[1] + y * in->linesize[1], (size_t)in->width * bpp);
         }
     }
     CVPixelBufferUnlockBaseAddress(pb, 0);
+    attach_hdr_side_data(avctx, pb, in);
     return pb;
 }
 
@@ -524,27 +685,62 @@ static AVFrame *wrap_output_cvpixelbuffer(AVFilterLink *outlink,
         if (tmpl) {
             av_frame_copy_props(out, tmpl);
         }
-        bpp = (outlink->format == AV_PIX_FMT_P010LE) ? 2 : 1;
         CVPixelBufferLockBaseAddress(pixbuf, kCVPixelBufferLock_ReadOnly);
         src_y = (const uint8_t *)CVPixelBufferGetBaseAddressOfPlane(pixbuf, 0);
         stride_y = CVPixelBufferGetBytesPerRowOfPlane(pixbuf, 0);
-        for (y = 0; y < out->height; ++y) {
-            memcpy(out->data[0] + y * out->linesize[0], src_y + y * stride_y, (size_t)out->width * bpp);
-        }
         src_uv = (const uint8_t *)CVPixelBufferGetBaseAddressOfPlane(pixbuf, 1);
         stride_uv = CVPixelBufferGetBytesPerRowOfPlane(pixbuf, 1);
-        if (outlink->format == AV_PIX_FMT_YUV420P) {
+
+        if (outlink->format == AV_PIX_FMT_YUV420P10LE) {
             int x;
+            for (y = 0; y < out->height; ++y) {
+                const uint16_t *sy = (const uint16_t *)(src_y + y * stride_y);
+                uint16_t *dy = (uint16_t *)(out->data[0] + y * out->linesize[0]);
+                for (x = 0; x + 8 <= out->width; x += 8) {
+                    vst1q_u16(dy + x, vshrq_n_u16(vld1q_u16(sy + x), 6));
+                }
+                for (; x < out->width; ++x) dy[x] = (uint16_t)(sy[x] >> 6);
+            }
             for (y = 0; y < out->height / 2; ++y) {
-                const uint8_t *row_uv = src_uv + y * stride_uv;
-                uint8_t *dst_u = out->data[1] + y * out->linesize[1];
-                uint8_t *dst_v = out->data[2] + y * out->linesize[2];
-                for (x = 0; x < out->width / 2; ++x) {
-                    dst_u[x] = row_uv[2 * x + 0];
-                    dst_v[x] = row_uv[2 * x + 1];
+                const uint16_t *suv = (const uint16_t *)(src_uv + y * stride_uv);
+                uint16_t *du = (uint16_t *)(out->data[1] + y * out->linesize[1]);
+                uint16_t *dv = (uint16_t *)(out->data[2] + y * out->linesize[2]);
+                int half_w = out->width / 2;
+                for (x = 0; x + 8 <= half_w; x += 8) {
+                    uint16x8x2_t pair = vld2q_u16(suv + x * 2);
+                    vst1q_u16(du + x, vshrq_n_u16(pair.val[0], 6));
+                    vst1q_u16(dv + x, vshrq_n_u16(pair.val[1], 6));
+                }
+                for (; x < half_w; ++x) {
+                    du[x] = (uint16_t)(suv[2 * x + 0] >> 6);
+                    dv[x] = (uint16_t)(suv[2 * x + 1] >> 6);
+                }
+            }
+        } else if (outlink->format == AV_PIX_FMT_YUV420P) {
+            int x;
+            for (y = 0; y < out->height; ++y) {
+                memcpy(out->data[0] + y * out->linesize[0], src_y + y * stride_y, (size_t)out->width);
+            }
+            for (y = 0; y < out->height / 2; ++y) {
+                const uint8_t *suv = src_uv + y * stride_uv;
+                uint8_t *du = out->data[1] + y * out->linesize[1];
+                uint8_t *dv = out->data[2] + y * out->linesize[2];
+                int half_w = out->width / 2;
+                for (x = 0; x + 16 <= half_w; x += 16) {
+                    uint8x16x2_t pair = vld2q_u8(suv + x * 2);
+                    vst1q_u8(du + x, pair.val[0]);
+                    vst1q_u8(dv + x, pair.val[1]);
+                }
+                for (; x < half_w; ++x) {
+                    du[x] = suv[2 * x + 0];
+                    dv[x] = suv[2 * x + 1];
                 }
             }
         } else {
+            bpp = (outlink->format == AV_PIX_FMT_P010LE) ? 2 : 1;
+            for (y = 0; y < out->height; ++y) {
+                memcpy(out->data[0] + y * out->linesize[0], src_y + y * stride_y, (size_t)out->width * bpp);
+            }
             for (y = 0; y < out->height / 2; ++y) {
                 memcpy(out->data[1] + y * out->linesize[1], src_uv + y * stride_uv, (size_t)out->width * bpp);
             }
@@ -593,7 +789,8 @@ static int macframe_activate(AVFilterContext *ctx)
     /* 1. Drain next ready interpolated frame if available */
     pull_rc = s->fn_pull(s->engine, &out_pb, &out_pts_sec);
     if (pull_rc == MF_OK && out_pb) {
-        AVFrame *out = wrap_output_cvpixelbuffer(outlink, s->template_frame, out_pb, out_pts_sec);
+        const AVFrame *tmpl = find_template_for_pts(s, out_pts_sec);
+        AVFrame *out = wrap_output_cvpixelbuffer(outlink, tmpl, out_pb, out_pts_sec);
         if (!out)
             return AVERROR(ENOMEM);
         ff_filter_set_ready(ctx, 100);
@@ -611,6 +808,7 @@ static int macframe_activate(AVFilterContext *ctx)
             return ret;
         if (ret > 0) {
             double pts_sec;
+            TemplateEntry *slot;
 
             if (s->last_in_pts != AV_NOPTS_VALUE && in->pts != AV_NOPTS_VALUE &&
                 (in->pts < s->last_in_pts ||
@@ -624,8 +822,12 @@ static int macframe_activate(AVFilterContext *ctx)
                           : ((double)s->in_count / s->in_fps);
             s->in_count++;
 
-            av_frame_unref(s->template_frame);
-            av_frame_copy_props(s->template_frame, in);
+            slot = &s->tmpl_ring[s->tmpl_head];
+            s->tmpl_head = (s->tmpl_head + 1) % TMPL_RING_SIZE;
+            av_frame_unref(slot->frame);
+            av_frame_copy_props(slot->frame, in);
+            slot->pts_sec = pts_sec;
+            slot->valid = true;
 
             if (in->format == AV_PIX_FMT_VIDEOTOOLBOX) {
                 CVPixelBufferRef src_pb = (CVPixelBufferRef)in->data[3];
@@ -633,7 +835,7 @@ static int macframe_activate(AVFilterContext *ctx)
                     s->fn_push(s->engine, src_pb, pts_sec);
                 }
             } else {
-                CVPixelBufferRef src_pb = sw_frame_to_cvpixelbuffer(in);
+                CVPixelBufferRef src_pb = sw_frame_to_cvpixelbuffer(ctx, in);
                 if (src_pb) {
                     s->fn_push(s->engine, src_pb, pts_sec);
                     CVPixelBufferRelease(src_pb);
@@ -679,6 +881,8 @@ static const AVOption macframe_options[] = {
     { "letterbox",   "Enable letterbox black-bar guard",       OFFSET(letterbox),   AV_OPT_TYPE_BOOL,   {.i64 = 1},        0,     1, FLAGS },
     { "governor",    "Enable adaptive performance governor",   OFFSET(governor),    AV_OPT_TYPE_BOOL,   {.i64 = 1},        0,     1, FLAGS },
     { "osd",         "Draw debug confidence bar on frame",     OFFSET(osd),         AV_OPT_TYPE_BOOL,   {.i64 = 0},        0,     1, FLAGS },
+    { "ab_mode",     "A/B comparison split mode (0..4)",       OFFSET(ab_mode),     AV_OPT_TYPE_INT,    {.i64 = 0},        0,     4, FLAGS },
+    { "ab_split",    "A/B divider position (0.1..0.9)",        OFFSET(ab_split),    AV_OPT_TYPE_FLOAT,  {.dbl = 0.5},   0.1f,  0.9f, FLAGS },
     { "lib",         "Explicit path to libmacframe.dylib",     OFFSET(lib_path),    AV_OPT_TYPE_STRING, {.str = NULL},     0,     0, FLAGS },
     { NULL }
 };
@@ -689,6 +893,7 @@ static const enum AVPixelFormat macframe_pix_fmts[] = {
     AV_PIX_FMT_VIDEOTOOLBOX,
     AV_PIX_FMT_NV12,
     AV_PIX_FMT_P010LE,
+    AV_PIX_FMT_YUV420P10LE,
     AV_PIX_FMT_YUV420P,
     AV_PIX_FMT_NONE
 };

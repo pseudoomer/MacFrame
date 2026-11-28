@@ -45,7 +45,7 @@ void Governor::set_params(float quality_ceiling, bool adaptive) {
     }
 }
 
-void Governor::record_gpu_time_ms(double ms) {
+void Governor::record_gpu_time_ms(double ms, bool is_batched) {
     if (ms < 0.0) ms = 0.0;
     samples_[head_] = ms;
     head_ = (head_ + 1) % kWindow;
@@ -65,7 +65,9 @@ void Governor::record_gpu_time_ms(double ms) {
 
     if (!adaptive_) return;
 
-    if (ms > budget_ms_ * 0.82 || (count_ >= 8 && avg_ms_ > budget_ms_ * 0.78)) {
+    double over_thresh = is_batched ? (budget_ms_ * 1.85) : (budget_ms_ * 0.82);
+    double avg_thresh  = is_batched ? (budget_ms_ * 1.75) : (budget_ms_ * 0.78);
+    if (ms > over_thresh || (count_ >= 8 && avg_ms_ > avg_thresh)) {
         over_budget_streak_++;
         under_budget_streak_ = 0;
         if (over_budget_streak_ >= 4 && current_tier_ > 0) {

@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-#define MF_ABI_VERSION 1u
+#define MF_ABI_VERSION 2u
 
 #define MF_OK     0
 #define MF_EAGAIN 1
@@ -33,6 +33,14 @@ typedef enum mf_preset {
     MF_PRESET_CUSTOM = 3,
 } mf_preset;
 
+typedef enum mf_ab_mode {
+    MF_AB_OFF                    = 0,
+    MF_AB_LEFT_ORIG_RIGHT_INTERP = 1,
+    MF_AB_RIGHT_ORIG_LEFT_INTERP = 2,
+    MF_AB_TOP_ORIG_BOTTOM_INTERP = 3,
+    MF_AB_BOTTOM_ORIG_TOP_INTERP = 4,
+} mf_ab_mode;
+
 typedef struct mf_config {
     uint32_t   abi_version;
     int        width;
@@ -51,6 +59,8 @@ typedef struct mf_config {
     int        letterbox_guard;  // 0 or 1 (black bar detection & boundary clamp)
     int        governor;         // 0 or 1 (adaptive quality Q4..Q0)
     int        debug_osd;        // 0 = off, 1 = overlay status bar
+    int        ab_mode;          // mf_ab_mode (0=off, 1=LR, 2=RL, 3=TB, 4=BT)
+    float      ab_split;         // 0.1 .. 0.9 divider position (default 0.5)
 } mf_config;
 
 typedef struct mf_stats {
@@ -67,6 +77,7 @@ typedef struct mf_stats {
     float      global_blend_alpha;
     int        letterbox_top;
     int        letterbox_bottom;
+    int        is_hdr;           // 0 = SDR, 1 = HDR10/PQ, 2 = HLG
 } mf_stats;
 
 // Initialize cfg with defaults for the given preset.

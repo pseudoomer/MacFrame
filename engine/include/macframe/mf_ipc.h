@@ -10,7 +10,7 @@ extern "C" {
 #endif
 
 #define MF_IPC_MAGIC   0x4D46524Du // 'MFRM'
-#define MF_IPC_VERSION 1u
+#define MF_IPC_VERSION 2u
 
 typedef enum mf_fps_mode {
     MF_FPS_MODE_DISPLAY = 0, // Match display refresh rate, capped at max_fps_cap
@@ -26,7 +26,7 @@ typedef struct mf_ipc_state {
     uint64_t config_seq;         // Incremented atomically by MacFrame.app on any setting change
 
     // --- User Control Settings (written by MacFrame.app) ---
-    int32_t  enabled;            // 1 = interpolation enabled, 0 = disabled (native IINA settings)
+    int32_t  enabled;            // 1 = interpolation enabled, 0 = disabled (native player settings)
     int32_t  fps_mode;           // mf_fps_mode
     double   max_fps_cap;        // Maximum output frame rate cap (e.g. 60, 90, 120, 144, 240)
     int32_t  preset;             // mf_preset (0=film, 1=anime, 2=sports, 3=custom)
@@ -40,14 +40,18 @@ typedef struct mf_ipc_state {
     int32_t  letterbox_guard;    // 0 or 1 (black bar boundary protection)
     int32_t  governor;           // 0 or 1 (adaptive performance governor Q4..Q0)
     int32_t  debug_osd;          // 0 or 1 (draw confidence bar on frame)
+    int32_t  ab_mode;            // mf_ab_mode (0=off, 1=LR, 2=RL, 3=TB, 4=BT)
+    float    ab_split;           // 0.1 .. 0.9 split divider position
 
-    // --- Live Telemetry (written by libmacframe inside IINA) ---
+    // --- Live Telemetry (written by libmacframe inside active player) ---
     uint64_t heartbeat_ms;       // Epoch milliseconds of last processed frame
     int32_t  active_pid;         // PID of active player process
     int32_t  video_width;
     int32_t  video_height;
     double   source_fps;
     double   output_fps;
+    int32_t  is_hdr;             // 0 = SDR, 1 = HDR10/PQ, 2 = HLG
+    char     active_client[32];  // e.g. "IINA", "mpv", "VLC", "Jellyfin", "Plex"
     mf_stats stats;
 } mf_ipc_state;
 

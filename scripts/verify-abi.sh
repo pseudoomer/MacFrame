@@ -44,13 +44,13 @@ if [[ "${ARCHS}" != *"arm64"* ]]; then
     exit 1
 fi
 
-# 2. Verify arm64 minimum macOS deployment target (warn if > 15.0)
+# 2. Verify arm64 minimum macOS deployment target (warn if > 26.0)
 ARM64_MINOS="$(otool -arch arm64 -l "${NEW_DYLIB}" | awk '/cmd LC_BUILD_VERSION/{f=1} f && /minos/{print $2; exit}')"
 if [[ -n "${ARM64_MINOS}" ]]; then
     echo "  arm64 minos: macOS ${ARM64_MINOS}"
     MINOS_MAJOR="${ARM64_MINOS%%.*}"
-    if [[ "${MINOS_MAJOR}" =~ ^[0-9]+$ && "${MINOS_MAJOR}" -gt 15 ]]; then
-        echo "  [WARN] arm64 deployment target (${ARM64_MINOS}) exceeds macOS 15.0; rebuild with build-ffmpeg-iina.sh."
+    if [[ "${MINOS_MAJOR}" =~ ^[0-9]+$ && "${MINOS_MAJOR}" -gt 26 ]]; then
+        echo "  [WARN] arm64 deployment target (${ARM64_MINOS}) exceeds macOS 26.0; rebuild with build-ffmpeg-iina.sh."
     fi
 fi
 

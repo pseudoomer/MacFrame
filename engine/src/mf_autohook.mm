@@ -325,10 +325,10 @@ static void sync_session(MpvSession &s, mf_ipc_state *ipc) {
             orig_mpv_command(s.ctx, rm_cmd);
         }
 
-        char spec[512];
+        char spec[640];
         std::snprintf(
             spec, sizeof(spec),
-            "@macframe:lavfi=[macframe=fps=%.2f:preset=%s:backend=%s:quality=%.2f:guard=%.2f:smoothness=%.2f:scene=%d:dedup=%d:static_lock=%d:letterbox=%d:governor=%d:osd=%d]",
+            "@macframe:lavfi=[macframe=fps=%.2f:preset=%s:backend=%s:quality=%.2f:guard=%.2f:smoothness=%.2f:scene=%d:dedup=%d:static_lock=%d:letterbox=%d:governor=%d:osd=%d:ab_mode=%d:ab_split=%.2f]",
             target_fps,
             preset_to_str(ipc->preset),
             backend_to_str(ipc->backend),
@@ -340,7 +340,9 @@ static void sync_session(MpvSession &s, mf_ipc_state *ipc) {
             ipc->static_lock ? 1 : 0,
             ipc->letterbox_guard ? 1 : 0,
             ipc->governor ? 1 : 0,
-            ipc->debug_osd ? 1 : 0);
+            ipc->debug_osd ? 1 : 0,
+            std::clamp(ipc->ab_mode, 0, 4),
+            std::clamp(ipc->ab_split, 0.1f, 0.9f));
 
         const char *add_cmd[] = {"vf", "add", spec, nullptr};
         int rc = orig_mpv_command(s.ctx, add_cmd);
@@ -392,6 +394,10 @@ static void mf_autohook_ctor() {
         return;
     }
     std::thread(autohook_worker).detach();
+    if (mf_ipc_state *st = mf_ipc_open()) {
+        std::snprintf(st->active_client, sizeof(st->active_client), "%s", "IINA");
+        mf_ipc_close(st);
+    }
 }
 
 } // namespace

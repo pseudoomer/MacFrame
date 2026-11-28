@@ -51,7 +51,7 @@ if [[ -f "${DIST_DIR}/libavfilter.12.dylib" ]]; then
     cp -f "${DIST_DIR}/libavfilter.12.dylib" "${PAYLOAD_DIR}/dist/libavfilter.12.dylib"
 fi
 
-swiftc -O -parse-as-library -target arm64-apple-macosx15.0 "${ROOT_DIR}/app/MacFrameApp.swift" \
+swiftc -O -parse-as-library -target arm64-apple-macosx26.0 "${ROOT_DIR}/app/MacFrameApp.swift" \
     -import-objc-header "${ROOT_DIR}/engine/include/macframe/mf_ipc.h" \
     -I "${ROOT_DIR}/engine/include" \
     -L "${BUILD_DIR}" -lmacframe \

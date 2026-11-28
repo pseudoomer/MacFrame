@@ -42,6 +42,8 @@ static void init_default_ipc_state(mf_ipc_state *st) {
     st->letterbox_guard = 1;
     st->governor        = 1;
     st->debug_osd       = 0;
+    st->ab_mode         = MF_AB_OFF;
+    st->ab_split        = 0.5f;
 }
 
 } // namespace
@@ -111,7 +113,7 @@ int mf_ipc_write_plugin_json(const mf_ipc_state *st) {
         if (st->fps_mode == MF_FPS_MODE_FIXED) fps_mode_str = "fixed";
         else if (st->fps_mode == MF_FPS_MODE_DOUBLE) fps_mode_str = "double";
 
-        char json[1024];
+        char json[1280];
         snprintf(json, sizeof(json),
                  "{\n"
                  "  \"seq\": %llu,\n"
@@ -128,7 +130,9 @@ int mf_ipc_write_plugin_json(const mf_ipc_state *st) {
                  "  \"static_lock\": %d,\n"
                  "  \"letterbox\": %d,\n"
                  "  \"governor\": %d,\n"
-                 "  \"debug_osd\": %d\n"
+                 "  \"debug_osd\": %d,\n"
+                 "  \"ab_mode\": %d,\n"
+                 "  \"ab_split\": %.3f\n"
                  "}\n",
                  (unsigned long long)st->config_seq,
                  st->enabled ? "true" : "false",
@@ -144,7 +148,9 @@ int mf_ipc_write_plugin_json(const mf_ipc_state *st) {
                  st->static_lock ? 1 : 0,
                  st->letterbox_guard ? 1 : 0,
                  st->governor ? 1 : 0,
-                 st->debug_osd ? 1 : 0);
+                 st->debug_osd ? 1 : 0,
+                 st->ab_mode,
+                 st->ab_split);
 
         NSString *content = [NSString stringWithUTF8String:json];
         std::string dir1 = get_ipc_dir();

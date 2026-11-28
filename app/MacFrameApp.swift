@@ -1033,6 +1033,8 @@ final class MacFrameViewModel: ObservableObject {
         st.pointee.letterbox_guard = letterboxGuard ? 1 : 0
         st.pointee.governor        = governor ? 1 : 0
         st.pointee.debug_osd       = debugOsd ? 1 : 0
+        st.pointee.ab_mode         = 0
+        st.pointee.ab_split        = 0.5
         st.pointee.config_seq     += 1
         mf_ipc_write_plugin_json(st)
     }

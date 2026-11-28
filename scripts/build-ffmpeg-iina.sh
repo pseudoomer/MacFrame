@@ -42,13 +42,13 @@ done
 
 BREW_PREFIX="$(brew --prefix)"
 export PKG_CONFIG_PATH="${BREW_PREFIX}/lib/pkgconfig"
-export MACOSX_DEPLOYMENT_TARGET="15.0"
+export MACOSX_DEPLOYMENT_TARGET="26.0"
 
 cd "${FF_SRC}"
 NEED_CONFIGURE=0
 if [[ ! -f config.h ]]; then
     NEED_CONFIGURE=1
-elif ! grep -q "mmacosx-version-min=15.0" ffbuild/config.mak 2>/dev/null || \
+elif ! grep -q "mmacosx-version-min=26.0" ffbuild/config.mak 2>/dev/null || \
      ! grep -q "dead_strip_dylibs" ffbuild/config.mak 2>/dev/null; then
     echo "Existing FFmpeg config is outdated; reconfiguring..."
     rm -f config.h ffbuild/config.mak libavfilter/*.o libavfilter/*.d libavfilter/*.dylib libavfilter/*/*.o libavfilter/*/*.d
@@ -56,7 +56,7 @@ elif ! grep -q "mmacosx-version-min=15.0" ffbuild/config.mak 2>/dev/null || \
 fi
 
 if [[ "${NEED_CONFIGURE}" -eq 1 ]]; then
-    echo "Configuring FFmpeg 9.0.1 (matching IINA 1.5.1 build flags + macframe, deployment target 15.0)..."
+    echo "Configuring FFmpeg 9.0.1 (matching IINA 1.5.1 build flags + macframe, deployment target 26.0)..."
     ./configure \
         --prefix="${FF_BUILD}/install" \
         --arch=arm64 \
@@ -92,8 +92,8 @@ if [[ "${NEED_CONFIGURE}" -eq 1 ]]; then
         --enable-libharfbuzz \
         --enable-filter=macframe \
         --enable-neon \
-        --extra-cflags="-arch arm64 -I${BREW_PREFIX}/include -mmacosx-version-min=15.0" \
-        --extra-ldflags="-arch arm64 -L${IINA_LIB_STAGE} -L${BREW_PREFIX}/lib -mmacosx-version-min=15.0 -Wl,-dead_strip_dylibs -Wl,-headerpad_max_install_names -Wl,-rpath,${FW_DIR}"
+        --extra-cflags="-arch arm64 -I${BREW_PREFIX}/include -mmacosx-version-min=26.0" \
+        --extra-ldflags="-arch arm64 -L${IINA_LIB_STAGE} -L${BREW_PREFIX}/lib -mmacosx-version-min=26.0 -Wl,-dead_strip_dylibs -Wl,-headerpad_max_install_names -Wl,-rpath,${FW_DIR}"
 fi
 
 echo "Building libavfilter objects and linking against IINA's bundled libraries..."

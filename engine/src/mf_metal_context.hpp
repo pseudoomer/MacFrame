@@ -14,6 +14,17 @@ struct PreprocessParams {
     uint32_t is_video_range;
 };
 
+struct ColorMatrixParams {
+    float kr;
+    float kb;
+    float y_offset;
+    float y_scale;
+    float c_offset;
+    float c_scale;
+    float overlay_hi;
+    float overlay_lo;
+};
+
 struct PairAnalysisResultHost {
     uint32_t diff_sum_fixed;
     uint32_t max_block_diff;
@@ -31,6 +42,7 @@ struct MESearchParams {
     float    smooth_lambda;
     int32_t  search_radius;
     int32_t  is_coarsest;
+    int32_t  use_static_early_exit;
 };
 
 struct ConsistencyParams {
@@ -65,6 +77,16 @@ struct SynthParams {
     int32_t  letterbox_bottom;
     int32_t  debug_osd;
     int32_t  current_tier;
+    int32_t  ab_mode;
+    float    ab_split;
+    float    overlay_hi;
+    float    overlay_lo;
+    float    kr;
+    float    kb;
+    float    y_offset;
+    float    y_scale;
+    float    c_offset;
+    float    c_scale;
 };
 
 class MetalContext {
@@ -90,6 +112,7 @@ public:
     id<MTLComputePipelineState> pso_compute_consistency;
     id<MTLComputePipelineState> pso_project_phase_flow;
     id<MTLComputePipelineState> pso_synth_biplanar_yuv;
+    id<MTLComputePipelineState> pso_synth_biplanar_yuv_quad;
     id<MTLComputePipelineState> pso_synth_bgra;
     id<MTLComputePipelineState> pso_blend_biplanar_yuv;
     id<MTLComputePipelineState> pso_yuv_to_rgba16f;

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
-set(CMAKE_OSX_DEPLOYMENT_TARGET "15.0" CACHE STRING "Minimum macOS version")
-project(MacFrame VERSION 0.2.2 LANGUAGES C CXX OBJC OBJCXX)
+set(CMAKE_OSX_DEPLOYMENT_TARGET "26.0" CACHE STRING "Minimum macOS version")
+project(MacFrame VERSION 0.3.0 LANGUAGES C CXX OBJC OBJCXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -8,7 +8,7 @@ set(CMAKE_OBJCXX_STANDARD 20)
 set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
 set(CMAKE_OSX_ARCHITECTURES "arm64")
 
-add_compile_options(-Wall -Wextra -Wno-unused-parameter -Wno-deprecated-declarations -O3)
+add_compile_options(-Wall -Wextra -Wno-unused-parameter -Wno-deprecated-declarations -O3 -mcpu=apple-m1)
 
 find_library(FOUNDATION_FW Foundation REQUIRED)
 find_library(APPKIT_FW AppKit REQUIRED)

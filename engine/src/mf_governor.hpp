@@ -21,7 +21,7 @@ public:
 
     void reset();
     void set_params(float quality_ceiling, bool adaptive);
-    void record_gpu_time_ms(double ms);
+    void record_gpu_time_ms(double ms, bool is_batched = false);
 
     int current_tier() const { return current_tier_; }
     int max_tier() const { return max_tier_; }

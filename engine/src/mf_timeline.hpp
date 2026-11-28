@@ -41,6 +41,7 @@ public:
 
     bool has_ready_output() const;
     TimelineOutputTask pop_output();
+    std::vector<float> peek_phases_for_pair(uint64_t f0_id, uint64_t f1_id) const;
 
     uint64_t scene_cuts() const { return scene_cuts_; }
     uint64_t dedup_drops() const { return dedup_drops_; }

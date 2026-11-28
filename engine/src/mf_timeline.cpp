@@ -183,4 +183,14 @@ TimelineOutputTask Timeline::pop_output() {
     return t;
 }
 
+std::vector<float> Timeline::peek_phases_for_pair(uint64_t f0_id, uint64_t f1_id) const {
+    std::vector<float> phases;
+    for (const auto &t : ready_) {
+        if (t.f0_id == f0_id && t.f1_id == f1_id && t.mode == OutputMode::Interpolate) {
+            phases.push_back(t.shaped_phase);
+        }
+    }
+    return phases;
+}
+
 } // namespace macframe

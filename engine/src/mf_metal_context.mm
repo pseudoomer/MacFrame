@@ -25,7 +25,8 @@ MetalContext::MetalContext() {
 
         NSError *err = nil;
         MTLCompileOptions *opts = [[MTLCompileOptions alloc] init];
-        opts.fastMathEnabled = YES;
+        opts.languageVersion = MTLLanguageVersion3_2;
+        opts.mathMode = MTLMathModeFast;
 
         NSString *src = [NSString stringWithUTF8String:kMacFrameShaderSource];
         library_ = [device_ newLibraryWithSource:src options:opts error:&err];
@@ -63,8 +64,9 @@ MetalContext::MetalContext() {
         pso_flow_refine_dis        = make_pso("flow_refine_dis");
         pso_compute_consistency    = make_pso("compute_consistency");
         pso_project_phase_flow     = make_pso("project_phase_flow");
-        pso_synth_biplanar_yuv     = make_pso("synth_biplanar_yuv");
-        pso_synth_bgra             = make_pso("synth_bgra");
+        pso_synth_biplanar_yuv      = make_pso("synth_biplanar_yuv");
+        pso_synth_biplanar_yuv_quad = make_pso("synth_biplanar_yuv_quad");
+        pso_synth_bgra              = make_pso("synth_bgra");
         pso_blend_biplanar_yuv     = make_pso("blend_biplanar_yuv");
         pso_yuv_to_rgba16f         = make_pso("yuv_to_rgba16f");
         pso_rgba16f_to_yuv_guarded = make_pso("rgba16f_to_yuv_guarded");
