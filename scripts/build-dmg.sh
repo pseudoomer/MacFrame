@@ -12,7 +12,7 @@ fi
 
 VERSION="${1:-}"
 if [[ -z "${VERSION}" ]]; then
-    PLIST_VER="$(defaults read "${APP_BUNDLE}/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || echo "0.2.0")"
+    PLIST_VER="$(defaults read "${APP_BUNDLE}/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || echo "0.2.1")"
     VERSION="v${PLIST_VER}"
 fi
 
