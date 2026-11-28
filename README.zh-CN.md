@@ -16,12 +16,20 @@
 ## 快速安装与使用
 
 ### 1. 安装
-1. 前往 [Releases](https://github.com/pseudoomer/MacFrame/releases) 下载最新的 `MacFrame-v0.2.0-macos.zip` 并解压。
-2. 双击运行 **`Install MacFrame.command`**。
-   - 安装脚本会将补帧引擎注入 `/Applications/IINA.app`，并将控制应用安装至 `/Applications/MacFrame.app`。
-   - 同时会启用后台守护服务，在 IINA 版本更新后自动完成重新注入。
 
-> 如需从源码编译安装，可执行 `./scripts/build-engine.sh && ./installer/macframe-install.sh /Applications/IINA.app`。
+> 环境要求：Apple Silicon（M1–M4）、macOS 15.0+、已安装 [IINA](https://iina.io/) 1.4.x。无需 Homebrew、Python 或 Xcode 命令行工具。
+
+**方式 A：DMG 拖拽安装（推荐）**
+1. 前往 [Releases](https://github.com/pseudoomer/MacFrame/releases) 下载最新的 **`MacFrame-v*-macos.dmg`**。
+2. 双击打开 DMG，将 **`MacFrame.app`** 拖入 **`Applications`** 文件夹。
+3. 打开 **`MacFrame.app`**，`MacFrame.app` 已内置完整引擎与安装器，首次启动会自动将补帧引擎注入 `/Applications/IINA.app` 并开启更新自愈守护服务（也可以随时在窗口底部手动点击「重新注入到 IINA」）。
+
+> **首次打开提示**：由于开源版本未购买 Apple 付费公证证书，macOS 首次拦截时可在终端执行一次 `xattr -dr com.apple.quarantine /Applications/MacFrame.app`，或在「系统设置 → 隐私与安全性」中点击「仍要打开」。
+
+**方式 B：ZIP 脚本安装（含命令行工具 `mfbench`）**
+- 下载 `MacFrame-v*-macos.zip` 解压，双击 **`Install MacFrame.command`** 即可自动注入 IINA、安装 `/Applications/MacFrame.app` 并启动。安装完成后可直接删除解压目录。
+
+> 如需从源码编译安装，可执行 `./scripts/build-ffmpeg-iina.sh /Applications/IINA.app && ./scripts/build-engine.sh && ./installer/macframe-install.sh /Applications/IINA.app`（可用 `./scripts/build-dmg.sh` 生成本地 DMG）。
 
 ### 2. 使用
 - 打开 **IINA** 播放视频，补帧会自动生效。

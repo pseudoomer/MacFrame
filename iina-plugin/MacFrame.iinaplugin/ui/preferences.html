@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>MacFrame Preferences</title>
+  <title>MacFrame Companion Plugin</title>
   <style>
     :root {
       color-scheme: light dark;
@@ -11,94 +11,49 @@
     body {
       margin: 16px;
       font-size: 13px;
-      line-height: 1.5;
+      line-height: 1.55;
     }
-    .group {
-      margin-bottom: 14px;
-      padding: 12px;
-      border-radius: 8px;
+    .card {
+      padding: 14px 16px;
+      border-radius: 10px;
       background: rgba(128, 128, 128, 0.12);
+      margin-bottom: 12px;
     }
-    .group h3 {
+    h3 {
       margin: 0 0 8px 0;
       font-size: 14px;
     }
-    .row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin: 6px 0;
+    p {
+      margin: 0 0 8px 0;
+      opacity: 0.88;
     }
-    select, input[type="number"] {
-      padding: 4px 8px;
-      border-radius: 6px;
+    p:last-child {
+      margin-bottom: 0;
     }
-    .hint {
-      font-size: 11px;
-      opacity: 0.72;
-      margin-top: 4px;
+    code, kbd {
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      font-size: 12px;
+      padding: 1px 5px;
+      border-radius: 4px;
+      background: rgba(128, 128, 128, 0.2);
     }
   </style>
 </head>
 <body>
-  <div class="group">
-    <h3>General</h3>
-    <div class="row">
-      <label for="enabled">Enable MacFrame by default</label>
-      <input type="checkbox" id="enabled" data-type="bool" data-pref-key="enabled" />
-    </div>
-    <div class="row">
-      <label for="fps_mode">Target Frame Rate</label>
-      <select id="fps_mode" data-pref-key="fps_mode">
-        <option value="display">Match Display Refresh Rate (ProMotion 120Hz)</option>
-        <option value="fixed_120">Fixed 120 fps</option>
-        <option value="fixed_60">Fixed 60 fps</option>
-        <option value="double">2x Source Frame Rate</option>
-      </select>
-    </div>
-    <div class="row">
-      <label for="preset">Content Preset</label>
-      <select id="preset" data-pref-key="preset">
-        <option value="film">Film / Drama (Balanced Smoothness & Halo Guard)</option>
-        <option value="anime">Anime (2s/3s Cadence Dedup + Crisp Line Guard)</option>
-        <option value="sports">Sports / Gaming (High-Speed Motion + Wide Search)</option>
-      </select>
-    </div>
-    <div class="row">
-      <label for="backend">Interpolation Engine Backend</label>
-      <select id="backend" data-pref-key="backend">
-        <option value="mflow">MF-Flow (Metal Native 3DRS + DIS Optical Flow)</option>
-        <option value="vtfrc">Apple VT-FRC (VideoToolbox ML + Artifact Guard)</option>
-        <option value="auto">Auto Select</option>
-      </select>
-    </div>
+  <div class="card">
+    <h3>Controlled via MacFrame.app</h3>
+    <p>
+      Real-time frame interpolation, frame rate caps, scene presets, and artifact guards are managed directly by
+      <strong>MacFrame.app</strong> (or its menu bar dashboard) with zero-latency shared-memory sync.
+    </p>
+    <p>
+      Open <strong>Plugins &rarr; MacFrame &rarr; Open MacFrame Control Center...</strong> to adjust settings while playing.
+    </p>
   </div>
 
-  <div class="group">
-    <h3>Artifact Mitigation Guards</h3>
-    <div class="row">
-      <label for="scene">Scene Cut Protection (Zero Cut Ghosting)</label>
-      <input type="checkbox" id="scene" data-type="int" data-pref-key="scene" />
-    </div>
-    <div class="row">
-      <label for="dedup">Anime 2s/3s Duplicate Frame Cadence Reconstruction</label>
-      <input type="checkbox" id="dedup" data-type="int" data-pref-key="dedup" />
-    </div>
-    <div class="row">
-      <label for="static_lock">Static HUD / Logo / Scoreboard / Subtitle Lock</label>
-      <input type="checkbox" id="static_lock" data-type="int" data-pref-key="static_lock" />
-    </div>
-    <div class="row">
-      <label for="letterbox">Letterbox Black Bar Boundary Protection</label>
-      <input type="checkbox" id="letterbox" data-type="int" data-pref-key="letterbox" />
-    </div>
-    <div class="row">
-      <label for="governor">Adaptive Performance Governor (Q4..Q0)</label>
-      <input type="checkbox" id="governor" data-type="int" data-pref-key="governor" />
-    </div>
-    <div class="hint">
-      Shortcuts inside IINA: <b>⌘⇧M</b> Toggle On/Off · <b>⌘⇧1/2/3</b> Switch Preset · <b>⌘⇧O</b> Live HUD
-    </div>
+  <div class="card">
+    <h3>Companion Shortcuts</h3>
+    <p><kbd>&#8984;&#8679;O</kbd> — Toggle the on-screen live FPS &amp; pipeline HUD inside IINA.</p>
   </div>
 </body>
 </html>

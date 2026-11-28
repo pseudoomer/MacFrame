@@ -36,10 +36,20 @@ done
 
 BREW_PREFIX="$(brew --prefix)"
 export PKG_CONFIG_PATH="${BREW_PREFIX}/lib/pkgconfig"
+export MACOSX_DEPLOYMENT_TARGET="15.0"
 
 cd "${FF_SRC}"
+NEED_CONFIGURE=0
 if [[ ! -f config.h ]]; then
-    echo "Configuring FFmpeg 7.0.1 (matching IINA 1.4.3 build flags + macframe)..."
+    NEED_CONFIGURE=1
+elif ! grep -q "mmacosx-version-min=15.0" ffbuild/config.mak 2>/dev/null; then
+    echo "Existing FFmpeg config lacks -mmacosx-version-min=15.0; reconfiguring..."
+    rm -f config.h ffbuild/config.mak libavfilter/*.o libavfilter/*.d libavfilter/*.dylib libavfilter/*/*.o libavfilter/*/*.d
+    NEED_CONFIGURE=1
+fi
+
+if [[ "${NEED_CONFIGURE}" -eq 1 ]]; then
+    echo "Configuring FFmpeg 7.0.1 (matching IINA 1.4.3 build flags + macframe, deployment target 15.0)..."
     ./configure \
         --prefix="${FF_BUILD}/install" \
         --enable-shared \
@@ -68,8 +78,8 @@ if [[ ! -f config.h ]]; then
         --enable-libjxl \
         --enable-filter=macframe \
         --enable-neon \
-        --extra-cflags="-I${BREW_PREFIX}/include" \
-        --extra-ldflags="-L${IINA_LIB_STAGE} -L${BREW_PREFIX}/lib -Wl,-headerpad_max_install_names -Wl,-rpath,${FW_DIR}"
+        --extra-cflags="-I${BREW_PREFIX}/include -mmacosx-version-min=15.0" \
+        --extra-ldflags="-L${IINA_LIB_STAGE} -L${BREW_PREFIX}/lib -mmacosx-version-min=15.0 -Wl,-headerpad_max_install_names -Wl,-rpath,${FW_DIR}"
 fi
 
 echo "Building libavfilter objects and linking against IINA's bundled libraries..."
@@ -130,6 +140,16 @@ else
 fi
 
 codesign --force -s - "${DIST_DIR}/libavfilter.10.dylib"
+
+# Keep embedded payload inside any already-built MacFrame.app bundle in sync
+for app_bundle in "${ROOT_DIR}/build/MacFrame.app" "${DIST_DIR}/MacFrame.app"; do
+    if [[ -d "${app_bundle}/Contents/Resources" ]]; then
+        mkdir -p "${app_bundle}/Contents/Resources/dist"
+        cp -f "${DIST_DIR}/libavfilter.10.dylib" "${app_bundle}/Contents/Resources/dist/libavfilter.10.dylib"
+        xattr -cr "${app_bundle}" 2>/dev/null || true
+        codesign --force --sign - "${app_bundle}" >/dev/null 2>&1 || true
+    fi
+done
 
 echo "Built universal ${DIST_DIR}/libavfilter.10.dylib"
 "${ROOT_DIR}/scripts/verify-abi.sh" "${DIST_DIR}/libavfilter.10.dylib" "${IINA_APP}"

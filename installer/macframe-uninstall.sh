@@ -22,7 +22,17 @@ fi
 rm -f "${HOME}/Library/Application Support/MacFrame/auto-reinject.sh"
 
 if [[ ! -f "${BACKUP_DIR}/libavfilter.10.dylib.orig" ]]; then
+    if [[ ! -f "${FW_DIR}/libmacframe.dylib" ]]; then
+        echo "IINA does not appear to have MacFrame injected, and no backup is needed."
+        exit 0
+    fi
     echo "[ERROR] Backup not found at ${BACKUP_DIR}/libavfilter.10.dylib.orig"
+    echo "Please reinstall official IINA from https://iina.io to restore original binaries."
+    exit 1
+fi
+
+if [[ ! -w "${FW_DIR}" ]]; then
+    echo "[ERROR] No write permission to ${FW_DIR}"
     exit 1
 fi
 
@@ -53,4 +63,10 @@ if [[ "${ORIG_SHA}" != "${RESTORED_SHA}" ]]; then
 fi
 codesign --verify --deep --strict "${TARGET_APP}"
 echo "  [OK] Original libavfilter.10.dylib & original Apple Developer ID signature restored byte-for-byte (SHA-256: ${RESTORED_SHA:0:16}...)."
+
+RUNNING_PID="$(pgrep -f "${TARGET_APP}/Contents/MacOS/IINA" | head -n 1 || true)"
+if [[ -n "${RUNNING_PID}" ]]; then
+    echo "Note: IINA is currently running (PID ${RUNNING_PID}). Restart IINA to unload MacFrame completely."
+fi
+
 echo "=== MacFrame Uninstallation Complete ==="

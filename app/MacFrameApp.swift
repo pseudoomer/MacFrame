@@ -822,6 +822,54 @@ struct L10n {
         default:      return "Switch interface language (defaults to system language)"
         }
     }
+    var statusWorking: String {
+        switch lang {
+        case .zhHans: return "正在处理..."
+        case .zhHant: return "正在處理..."
+        case .ja:     return "処理中..."
+        case .ko:     return "처리 중..."
+        case .fr:     return "En cours..."
+        case .de:     return "Wird ausgeführt..."
+        case .es:     return "Procesando..."
+        default:      return "Working..."
+        }
+    }
+    var statusInjectedOk: String {
+        switch lang {
+        case .zhHans: return "已成功注入 IINA，打开视频即可自动补帧"
+        case .zhHant: return "已成功注入 IINA，打開影片即可自動補幀"
+        case .ja:     return "IINA への注入が完了しました"
+        case .ko:     return "IINA 주입이 완료되었습니다"
+        case .fr:     return "Moteur injecté dans IINA avec succès"
+        case .de:     return "Engine erfolgreich in IINA injiziert"
+        case .es:     return "Motor inyectado en IINA correctamente"
+        default:      return "Injected into IINA successfully"
+        }
+    }
+    var statusRestoredOk: String {
+        switch lang {
+        case .zhHans: return "已无损还原原版 IINA 与原始签名"
+        case .zhHant: return "已無損還原原版 IINA 與原始簽名"
+        case .ja:     return "純正状態の IINA に復元しました"
+        case .ko:     return "순정 IINA 상태로 복원되었습니다"
+        case .fr:     return "IINA restauré dans son état d'origine"
+        case .de:     return "Original-IINA erfolgreich wiederhergestellt"
+        case .es:     return "IINA restaurado a su estado original"
+        default:      return "Original signed IINA restored"
+        }
+    }
+    var errScriptMissing: String {
+        switch lang {
+        case .zhHans: return "未找到内置安装脚本，请重新下载完整安装包"
+        case .zhHant: return "未找到內建安裝腳本，請重新下載完整安裝包"
+        case .ja:     return "内蔵インストーラーが見つかりません"
+        case .ko:     return "내장 설치 스크립트를 찾을 수 없습니다"
+        case .fr:     return "Script d'installation intégré introuvable"
+        case .de:     return "Integriertes Installationsskript nicht gefunden"
+        case .es:     return "No se encontró el script de instalación integrado"
+        default:      return "Bundled installer script not found"
+        }
+    }
 }
 
 struct HoverTip: Equatable {
@@ -885,16 +933,22 @@ final class MacFrameViewModel: ObservableObject {
     @Published var isEngineInstalledInTarget: Bool = false
     @Published var isTargetIinaPresent: Bool = true
     @Published var autoInjectOnUpdate: Bool = true
+    @Published var isRunningInstaller: Bool = false
     @Published var statusLogMessage: String = ""
+    @Published var statusLogIsError: Bool = false
 
+    private static let autoInjectKey = "macframe.autoInjectOnUpdate"
     private var ipcPtr: UnsafeMutablePointer<mf_ipc_state>?
     private var timer: Timer?
     private var isLoadingInitial = false
-    private var isRunningInstaller = false
+    private var didAttemptAutoInject = false
     private var pollCounter: Int = 0
 
     init(startTimer: Bool = true) {
         targetIinaPath = "/Applications/IINA.app"
+        if UserDefaults.standard.object(forKey: Self.autoInjectKey) != nil {
+            autoInjectOnUpdate = UserDefaults.standard.bool(forKey: Self.autoInjectKey)
+        }
         ipcPtr = mf_ipc_open()
         loadFromIPC()
         refreshIinaInstallStatus()
@@ -1011,52 +1065,99 @@ final class MacFrameViewModel: ObservableObject {
         }
     }
 
+    func setAutoInjectOnUpdate(_ enabled: Bool) {
+        autoInjectOnUpdate = enabled
+        UserDefaults.standard.set(enabled, forKey: Self.autoInjectKey)
+        if !enabled {
+            let plistPath = (NSHomeDirectory() as NSString).appendingPathComponent("Library/LaunchAgents/io.github.pseudoomer.macframe.autoinject.plist")
+            if FileManager.default.fileExists(atPath: plistPath) {
+                let proc = Process()
+                proc.executableURL = URL(fileURLWithPath: "/bin/launchctl")
+                proc.arguments = ["unload", plistPath]
+                try? proc.run()
+                proc.waitUntilExit()
+                try? FileManager.default.removeItem(atPath: plistPath)
+            }
+        } else {
+            didAttemptAutoInject = false
+            ensureInjectedIfNeeded()
+        }
+    }
+
     func ensureInjectedIfNeeded() {
-        guard autoInjectOnUpdate, !isRunningInstaller else { return }
+        guard autoInjectOnUpdate, !isRunningInstaller, !didAttemptAutoInject else { return }
         if isTargetIinaPresent && !isEngineInstalledInTarget {
-            runInstaller(install: true)
+            didAttemptAutoInject = true
+            runInstaller(install: true, isAuto: true)
         }
     }
 
     func refreshIinaInstallStatus() {
         let dylibPath = targetIinaPath + "/Contents/Frameworks/libmacframe.dylib"
+        let wasInstalled = isEngineInstalledInTarget
         if FileManager.default.fileExists(atPath: dylibPath) {
             isTargetIinaPresent = true
             isEngineInstalledInTarget = true
+            didAttemptAutoInject = false
         } else if FileManager.default.fileExists(atPath: targetIinaPath) {
             isTargetIinaPresent = true
             isEngineInstalledInTarget = false
+            if wasInstalled {
+                // IINA was updated and stripped libmacframe; allow auto-reinject once
+                didAttemptAutoInject = false
+            }
         } else {
             isTargetIinaPresent = false
             isEngineInstalledInTarget = false
         }
     }
 
-    private func repoRootPath() -> String {
+    private func installerSource(install: Bool) -> (script: String, isEmbedded: Bool)? {
+        let rel = install ? "/installer/macframe-install.sh" : "/installer/macframe-uninstall.sh"
+        let fm = FileManager.default
+        if let resPath = Bundle.main.resourcePath, fm.fileExists(atPath: resPath + rel) {
+            return (resPath + rel, true)
+        }
         let bundlePath = Bundle.main.bundlePath
         let parent1 = (bundlePath as NSString).deletingLastPathComponent
         let parent2 = (parent1 as NSString).deletingLastPathComponent
-        if FileManager.default.fileExists(atPath: parent2 + "/installer/macframe-install.sh") {
-            return parent2
+        for dir in [parent2, parent1, fm.currentDirectoryPath] {
+            if fm.fileExists(atPath: dir + rel) {
+                return (dir + rel, false)
+            }
         }
-        if FileManager.default.fileExists(atPath: parent1 + "/installer/macframe-install.sh") {
-            return parent1
-        }
-        return FileManager.default.currentDirectoryPath
+        return nil
     }
 
-    func runInstaller(install: Bool) {
+    func runInstaller(install: Bool, isAuto: Bool = false) {
         if isRunningInstaller { return }
+        guard let source = installerSource(install: install) else {
+            statusLogIsError = true
+            statusLogMessage = t.errScriptMissing
+            return
+        }
         isRunningInstaller = true
-        autoInjectOnUpdate = install
-        let root = repoRootPath()
-        let script = root + (install ? "/installer/macframe-install.sh" : "/installer/macframe-uninstall.sh")
+        statusLogIsError = false
+        statusLogMessage = ""
+        if !isAuto {
+            didAttemptAutoInject = false
+            autoInjectOnUpdate = install
+            UserDefaults.standard.set(install, forKey: Self.autoInjectKey)
+        }
         let target = targetIinaPath
+        let bundlePath = Bundle.main.bundlePath
+        let isInApplications = bundlePath.hasPrefix("/Applications/") ||
+            bundlePath.hasPrefix((NSHomeDirectory() as NSString).appendingPathComponent("Applications") + "/")
+        var args = [source.script]
+        if install && source.isEmbedded && isInApplications {
+            args.append("--skip-app-copy")
+        }
+        args.append(target)
 
         Task.detached {
             let proc = Process()
             proc.executableURL = URL(fileURLWithPath: "/bin/bash")
-            proc.arguments = [script, target]
+            proc.arguments = args
             let pipe = Pipe()
             proc.standardOutput = pipe
             proc.standardError = pipe
@@ -1070,14 +1171,22 @@ final class MacFrameViewModel: ObservableObject {
                 output = error.localizedDescription
             }
             let code = proc.terminationStatus
-            let finalOutput = output
+            let lines = output
+                .split(separator: "\n")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+            let errorSummary = lines.last(where: { $0.contains("[ERROR]") || $0.contains("[FAIL]") })
+                ?? lines.last
+                ?? "exit code \(code)"
             await MainActor.run {
                 self.isRunningInstaller = false
                 self.refreshIinaInstallStatus()
                 if code == 0 {
-                    self.statusLogMessage = ""
+                    self.statusLogIsError = false
+                    self.statusLogMessage = install ? self.t.statusInjectedOk : self.t.statusRestoredOk
                 } else {
-                    self.statusLogMessage = "Error (\(code)): \(finalOutput.suffix(120))"
+                    self.statusLogIsError = true
+                    self.statusLogMessage = String(errorSummary.prefix(140))
                 }
             }
         }
@@ -2017,10 +2126,13 @@ struct ControlCenterView: View {
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                         .fixedSize()
-                    Toggle("", isOn: $vm.autoInjectOnUpdate)
-                        .toggleStyle(.switch)
-                        .controlSize(.small)
-                        .labelsHidden()
+                    Toggle("", isOn: Binding(
+                        get: { vm.autoInjectOnUpdate },
+                        set: { val in vm.setAutoInjectOnUpdate(val) }
+                    ))
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    .labelsHidden()
                 }
                 .fastTip(t.autoGuardTip, space: "main", vm: vm)
             }
@@ -2034,6 +2146,7 @@ struct ControlCenterView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.regular)
+                .disabled(vm.isRunningInstaller || !vm.isTargetIinaPresent)
                 .fixedSize()
                 .fastTip(t.btnInjectTip, space: "main", vm: vm)
 
@@ -2042,8 +2155,20 @@ struct ControlCenterView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
+                .disabled(vm.isRunningInstaller || !vm.isTargetIinaPresent)
                 .fixedSize()
                 .fastTip(t.btnRestoreTip, space: "main", vm: vm)
+
+                if vm.isRunningInstaller {
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text(t.statusWorking)
+                            .font(.system(size: 11.5))
+                            .foregroundColor(.secondary)
+                            .fixedSize()
+                    }
+                }
 
                 Spacer()
 
@@ -2055,7 +2180,21 @@ struct ControlCenterView: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.regular)
+                .disabled(!vm.isTargetIinaPresent)
                 .fastTip(t.btnOpenIina, space: "main", vm: vm)
+            }
+
+            if !vm.statusLogMessage.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: vm.statusLogIsError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
+                        .font(.system(size: 11.5))
+                        .foregroundColor(vm.statusLogIsError ? .orange : .green)
+                    Text(vm.statusLogMessage)
+                        .font(.system(size: 11.5))
+                        .foregroundColor(vm.statusLogIsError ? .orange : .secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
         .padding(16)

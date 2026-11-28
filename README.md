@@ -16,12 +16,20 @@ Built natively on Metal and VideoToolbox, it requires no Python or VapourSynth s
 ## Quick Start
 
 ### 1. Install
-1. Download the latest `MacFrame-v0.2.0-macos.zip` from [Releases](https://github.com/pseudoomer/MacFrame/releases) and extract it.
-2. Double-click **`Install MacFrame.command`**.
-   - The installer injects the engine into `/Applications/IINA.app` and places the control app in `/Applications/MacFrame.app`.
-   - A lightweight background agent automatically re-applies the injection whenever IINA updates.
 
-> To build and install from source instead, run `./scripts/build-engine.sh && ./installer/macframe-install.sh /Applications/IINA.app`.
+> Requirements: Apple Silicon (M1–M4), macOS 15.0+, and [IINA](https://iina.io/) 1.4.x. No Homebrew, Python, or Xcode Command Line Tools required.
+
+**Option A: Drag-and-Drop DMG (Recommended)**
+1. Download the latest **`MacFrame-v*-macos.dmg`** from [Releases](https://github.com/pseudoomer/MacFrame/releases).
+2. Open the DMG and drag **`MacFrame.app`** into **`Applications`**.
+3. Launch **`MacFrame.app`**. Because the app is completely self-contained, it automatically injects the interpolation engine into `/Applications/IINA.app` and enables the update auto-reinject watcher on first launch (you can also click **Inject into IINA** manually at the bottom of the window).
+
+> **First-Launch Gatekeeper Note**: Since open-source builds are ad-hoc signed rather than Apple-notarized, if macOS blocks the first launch, run `xattr -dr com.apple.quarantine /Applications/MacFrame.app` once in Terminal (or allow it in **System Settings → Privacy & Security → Open Anyway**).
+
+**Option B: ZIP Archive (includes `Install MacFrame.command` & `mfbench` CLI)**
+- Download and extract `MacFrame-v*-macos.zip`, then double-click **`Install MacFrame.command`** to inject IINA, install `/Applications/MacFrame.app`, and launch it. You can safely delete the extracted folder afterwards.
+
+> To build from source instead, run `./scripts/build-ffmpeg-iina.sh /Applications/IINA.app && ./scripts/build-engine.sh && ./installer/macframe-install.sh /Applications/IINA.app` (and optionally `./scripts/build-dmg.sh` to build a DMG).
 
 ### 2. Use
 - Open any video in **IINA**; frame interpolation engages automatically.

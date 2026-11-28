@@ -10,8 +10,8 @@ NEW_DYLIB="$1"
 IINA_APP="$2"
 FW_DIR="${IINA_APP}/Contents/Frameworks"
 
-if [[ ! -f "${NEW_DYLIB}" ]]; then
-    echo "[FAIL] Missing dylib: ${NEW_DYLIB}"
+if [[ ! -f "${NEW_DYLIB}" || ! -s "${NEW_DYLIB}" ]]; then
+    echo "[FAIL] Missing or empty dylib: ${NEW_DYLIB}"
     exit 1
 fi
 if [[ ! -d "${FW_DIR}" ]]; then
@@ -21,6 +21,21 @@ fi
 
 echo "=== Verifying ABI & Dependency Graph of $(basename "${NEW_DYLIB}") against ${IINA_APP} ==="
 
+# 0. Basic FFmpeg sibling presence check (works on stock macOS without Xcode Command Line Tools)
+for req in "libavutil.59.dylib" "libavcodec.61.dylib" "libavformat.61.dylib" "libswscale.8.dylib"; do
+    if [[ ! -f "${FW_DIR}/${req}" ]]; then
+        echo "[FAIL] Unsupported IINA FFmpeg ABI: missing ${FW_DIR}/${req}"
+        exit 1
+    fi
+done
+
+if ! xcode-select -p >/dev/null 2>&1; then
+    echo "  [OK] Core IINA FFmpeg 7.0.x libraries present."
+    echo "  [INFO] Xcode Command Line Tools not installed; skipping compiler-based deep verification."
+    echo "=== Lightweight ABI Verification PASSED ==="
+    exit 0
+fi
+
 # 1. Verify arm64 slice exists
 ARCHS="$(lipo -archs "${NEW_DYLIB}")"
 echo "  Architectures: ${ARCHS}"
@@ -29,7 +44,17 @@ if [[ "${ARCHS}" != *"arm64"* ]]; then
     exit 1
 fi
 
-# 2. Verify all @rpath dependencies exist in IINA Frameworks or build dir
+# 2. Verify arm64 minimum macOS deployment target (warn if > 15.0)
+ARM64_MINOS="$(otool -arch arm64 -l "${NEW_DYLIB}" | awk '/cmd LC_BUILD_VERSION/{f=1} f && /minos/{print $2; exit}')"
+if [[ -n "${ARM64_MINOS}" ]]; then
+    echo "  arm64 minos: macOS ${ARM64_MINOS}"
+    MINOS_MAJOR="${ARM64_MINOS%%.*}"
+    if [[ "${MINOS_MAJOR}" =~ ^[0-9]+$ && "${MINOS_MAJOR}" -gt 15 ]]; then
+        echo "  [WARN] arm64 deployment target (${ARM64_MINOS}) exceeds macOS 15.0; rebuild with build-ffmpeg-iina.sh."
+    fi
+fi
+
+# 3. Verify all @rpath dependencies exist in IINA Frameworks or build dir
 DEPS=$(otool -arch arm64 -L "${NEW_DYLIB}" | tail -n +2 | awk '{print $1}')
 for dep in ${DEPS}; do
     if [[ "${dep}" == @rpath/* ]]; then
@@ -45,14 +70,14 @@ for dep in ${DEPS}; do
 done
 echo "  [OK] All LC_LOAD_DYLIB entries are portable (@rpath or system frameworks) and present in IINA."
 
-# 3. Verify ff_vf_macframe is compiled in
+# 4. Verify ff_vf_macframe is compiled in
 if ! (nm -arch arm64 "${NEW_DYLIB}" | grep "_ff_vf_macframe" >/dev/null); then
     echo "[FAIL] Filter '_ff_vf_macframe' symbol not found in ${NEW_DYLIB}"
     exit 1
 fi
 echo "  [OK] 'macframe' filter symbol & descriptor verified."
 
-# 4. Runtime dlopen(RTLD_NOW) check with IINA's Frameworks rpath
+# 5. Runtime dlopen(RTLD_NOW) check with IINA's Frameworks rpath
 TMP_BIN="$(mktemp -t mf_abi_check)"
 cc -x c - -o "${TMP_BIN}" -Wl,-rpath,"${FW_DIR}" <<'EOF'
 #include <dlfcn.h>

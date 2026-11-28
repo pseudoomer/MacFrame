@@ -13,29 +13,60 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
-      - name: Install dependencies
+      - name: Install dependencies and IINA
         run: |
           brew install cmake ninja pkg-config nasm \
             libass rubberband libvidstab zeromq zimg fontconfig freetype \
             frei0r gnutls libbluray dav1d snappy speex libsoxr webp jpeg-xl libsamplerate
-      - name: Build Engine
+          brew install --cask iina
+          test -d /Applications/IINA.app/Contents/Frameworks
+      - name: Build Patched FFmpeg libavfilter for IINA
+        run: ./scripts/build-ffmpeg-iina.sh /Applications/IINA.app
+      - name: Build Engine and Self-Contained MacFrame.app
         run: ./scripts/build-engine.sh
       - name: Run Tests
         run: ctest --test-dir build --output-on-failure
-      - name: Package Release Archive
+      - name: Package and Verify DMG & ZIP Release Assets
         run: |
-          mkdir -p release-pkg/MacFrame/dist
-          cp -R dist/MacFrame.app dist/libmacframe.1.dylib release-pkg/MacFrame/dist/
-          cp -R build/mfbench installer iina-plugin docs LICENSE README.md README.zh-CN.md "Install MacFrame.command" "Uninstall MacFrame.command" release-pkg/MacFrame/
-          cd release-pkg && zip -r "../MacFrame-${GITHUB_REF_NAME}-macos.zip" MacFrame
+          TAG="${GITHUB_REF_NAME}"
+          DMG_OUT="MacFrame-${TAG}-macos.dmg"
+          ZIP_OUT="MacFrame-${TAG}-macos.zip"
+
+          # 1. Verify self-contained MacFrame.app completeness & ABI before packaging
+          test -f dist/libavfilter.10.dylib
+          test -f dist/libmacframe.dylib
+          test -f dist/MacFrame.app/Contents/Resources/dist/libavfilter.10.dylib
+          test -f dist/MacFrame.app/Contents/Resources/dist/libmacframe.dylib
+          test -x dist/MacFrame.app/Contents/Resources/installer/macframe-install.sh
+          ./scripts/verify-abi.sh dist/libavfilter.10.dylib /Applications/IINA.app
+
+          # 2. Build drag-to-Applications DMG (primary macOS installer)
+          ./scripts/build-dmg.sh "${TAG}" "${DMG_OUT}"
+
+          # 3. Build ZIP archive (includes CLI tools, scripts, and docs)
+          PKG="release-pkg/MacFrame"
+          mkdir -p "${PKG}/dist" "${PKG}/scripts"
+          cp -a dist/MacFrame.app dist/libmacframe.dylib dist/libmacframe.1.dylib dist/libavfilter.10.dylib "${PKG}/dist/"
+          cp -f scripts/verify-abi.sh "${PKG}/scripts/verify-abi.sh"
+          chmod +x "${PKG}/scripts/verify-abi.sh"
+          cp -R build/mfbench installer iina-plugin docs LICENSE README.md README.zh-CN.md "Install MacFrame.command" "Uninstall MacFrame.command" "${PKG}/"
+          chmod +x "${PKG}/Install MacFrame.command" "${PKG}/Uninstall MacFrame.command" "${PKG}/installer/macframe-install.sh" "${PKG}/installer/macframe-uninstall.sh"
+          (cd release-pkg && zip -ry "../${ZIP_OUT}" MacFrame)
+
+          # 4. Generate SHA-256 checksums
+          shasum -a 256 "${DMG_OUT}" "${ZIP_OUT}" > SHA256SUMS.txt
+          cat SHA256SUMS.txt
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view "${GITHUB_REF_NAME}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
-            gh release upload "${GITHUB_REF_NAME}" "MacFrame-${GITHUB_REF_NAME}-macos.zip" \
+          TAG="${GITHUB_REF_NAME}"
+          DMG_OUT="MacFrame-${TAG}-macos.dmg"
+          ZIP_OUT="MacFrame-${TAG}-macos.zip"
+          if gh release view "${TAG}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release upload "${TAG}" "${DMG_OUT}" "${ZIP_OUT}" SHA256SUMS.txt \
               --repo "${GITHUB_REPOSITORY}" --clobber
           else
-            gh release create "${GITHUB_REF_NAME}" "MacFrame-${GITHUB_REF_NAME}-macos.zip" \
-              --repo "${GITHUB_REPOSITORY}" --title "${GITHUB_REF_NAME}" --generate-notes
+            gh release create "${TAG}" "${DMG_OUT}" "${ZIP_OUT}" SHA256SUMS.txt \
+              --repo "${GITHUB_REPOSITORY}" --title "${TAG}" --generate-notes
           fi

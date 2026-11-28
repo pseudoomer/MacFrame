@@ -1,11 +1,33 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TARGET_APP="${1:-/Applications/IINA.app}"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+SKIP_APP_COPY=0
+TARGET_APP="/Applications/IINA.app"
+
+for arg in "$@"; do
+    case "${arg}" in
+        --skip-app-copy)
+            SKIP_APP_COPY=1
+            ;;
+        -h|--help)
+            echo "Usage: $0 [--skip-app-copy] [/Applications/IINA.app]"
+            exit 0
+            ;;
+        *)
+            TARGET_APP="${arg}"
+            ;;
+    esac
+done
 
 if [[ ! -d "${TARGET_APP}/Contents/Frameworks" ]]; then
     echo "[ERROR] IINA app bundle not found at: ${TARGET_APP}"
+    echo "Please install IINA (https://iina.io) to /Applications/IINA.app first."
+    exit 1
+fi
+
+if [[ ! -w "${TARGET_APP}/Contents/Frameworks" ]]; then
+    echo "[ERROR] No write permission to ${TARGET_APP}/Contents/Frameworks"
     exit 1
 fi
 
@@ -18,16 +40,48 @@ if [[ ! -f "${FW_DIR}/libavfilter.10.dylib" || ! -f "${FW_DIR}/libavutil.59.dyli
     exit 1
 fi
 
-if [[ ! -f "${ROOT_DIR}/build/libmacframe.dylib" ]]; then
-    echo "Building MacFrame Metal engine..."
-    "${ROOT_DIR}/scripts/build-engine.sh"
-fi
-if [[ ! -f "${ROOT_DIR}/dist/libavfilter.10.dylib" ]]; then
-    echo "Building patched FFmpeg 7.0.1 libavfilter.10.dylib..."
-    "${ROOT_DIR}/scripts/build-ffmpeg-iina.sh" "${TARGET_APP}"
+# Locate prebuilt libmacframe.dylib (dist -> build -> embedded Frameworks -> build from source)
+LIBMACFRAME_SRC=""
+for cand in \
+    "${ROOT_DIR}/dist/libmacframe.dylib" \
+    "${ROOT_DIR}/dist/libmacframe.1.dylib" \
+    "${ROOT_DIR}/build/libmacframe.1.0.0.dylib" \
+    "${ROOT_DIR}/../Frameworks/libmacframe.1.0.0.dylib"; do
+    if [[ -f "${cand}" ]]; then
+        LIBMACFRAME_SRC="${cand}"
+        break
+    fi
+done
+
+if [[ -z "${LIBMACFRAME_SRC}" ]]; then
+    if [[ -x "${ROOT_DIR}/scripts/build-engine.sh" ]]; then
+        echo "Building MacFrame Metal engine from source..."
+        "${ROOT_DIR}/scripts/build-engine.sh"
+        LIBMACFRAME_SRC="${ROOT_DIR}/dist/libmacframe.dylib"
+    else
+        echo "[ERROR] Prebuilt libmacframe.dylib not found under ${ROOT_DIR}."
+        exit 1
+    fi
 fi
 
-"${ROOT_DIR}/scripts/verify-abi.sh" "${ROOT_DIR}/dist/libavfilter.10.dylib" "${TARGET_APP}"
+# Locate prebuilt patched libavfilter.10.dylib (dist -> build from source)
+AVFILTER_SRC=""
+if [[ -f "${ROOT_DIR}/dist/libavfilter.10.dylib" ]]; then
+    AVFILTER_SRC="${ROOT_DIR}/dist/libavfilter.10.dylib"
+elif [[ -x "${ROOT_DIR}/scripts/build-ffmpeg-iina.sh" ]]; then
+    echo "Building patched FFmpeg 7.0.1 libavfilter.10.dylib from source..."
+    "${ROOT_DIR}/scripts/build-ffmpeg-iina.sh" "${TARGET_APP}"
+    AVFILTER_SRC="${ROOT_DIR}/dist/libavfilter.10.dylib"
+else
+    echo "[ERROR] Prebuilt dist/libavfilter.10.dylib not found under ${ROOT_DIR}."
+    echo "Please download a complete MacFrame release archive or build from source."
+    exit 1
+fi
+
+# Verify ABI compatibility before touching IINA
+if [[ -x "${ROOT_DIR}/scripts/verify-abi.sh" ]]; then
+    "${ROOT_DIR}/scripts/verify-abi.sh" "${AVFILTER_SRC}" "${TARGET_APP}"
+fi
 
 # 1. Backup original files before modifying signature (never overwrite existing pristine backup)
 BACKUP_DIR="${HOME}/Library/Application Support/MacFrame/backup/${IINA_VER}"
@@ -46,10 +100,20 @@ fi
 
 # 2. Install libmacframe.dylib and patched libavfilter.10.dylib into IINA Frameworks
 echo "Installing libmacframe.dylib and patched libavfilter.10.dylib..."
-cp -f "${ROOT_DIR}/build/libmacframe.1.0.0.dylib" "${FW_DIR}/libmacframe.dylib"
-install_name_tool -id "@rpath/libmacframe.dylib" "${FW_DIR}/libmacframe.dylib"
+cp -f "${LIBMACFRAME_SRC}" "${FW_DIR}/libmacframe.dylib"
+chmod 755 "${FW_DIR}/libmacframe.dylib"
+xattr -c "${FW_DIR}/libmacframe.dylib" 2>/dev/null || true
+if xcode-select -p >/dev/null 2>&1; then
+    CUR_ID="$(otool -D "${FW_DIR}/libmacframe.dylib" 2>/dev/null | tail -n 1 || true)"
+    if [[ "${CUR_ID}" != "@rpath/libmacframe.dylib" ]]; then
+        install_name_tool -id "@rpath/libmacframe.dylib" "${FW_DIR}/libmacframe.dylib"
+    fi
+fi
 ln -sf "libmacframe.dylib" "${FW_DIR}/libmacframe.1.dylib"
-cp -f "${ROOT_DIR}/dist/libavfilter.10.dylib" "${FW_DIR}/libavfilter.10.dylib"
+
+cp -f "${AVFILTER_SRC}" "${FW_DIR}/libavfilter.10.dylib"
+chmod 755 "${FW_DIR}/libavfilter.10.dylib"
+xattr -c "${FW_DIR}/libavfilter.10.dylib" 2>/dev/null || true
 
 # 3. Re-sign modified binaries and top-level bundle (without touching unmodified Frameworks)
 echo "Re-signing ${TARGET_APP} (ad-hoc signature)..."
@@ -61,39 +125,82 @@ codesign --force -s - "${TARGET_APP}"
 codesign --verify "${TARGET_APP}"
 echo "  [OK] codesign verification passed."
 
-# 4. Install MacFrame IINA Plugin
-PLUGIN_DST_DIR="${HOME}/Library/Application Support/com.colliderli.iina/plugins"
-PLUGIN_DST="${PLUGIN_DST_DIR}/io.github.pseudoomer.macframe.iinaplugin"
-mkdir -p "${PLUGIN_DST_DIR}"
-rm -rf "${PLUGIN_DST}"
-cp -R "${ROOT_DIR}/iina-plugin/MacFrame.iinaplugin" "${PLUGIN_DST}"
-defaults write com.colliderli.iina iinaEnablePluginSystem -bool true 2>/dev/null || true
-defaults write com.colliderli.iina "PluginEnabled.io.github.pseudoomer.macframe" -bool true 2>/dev/null || true
-echo "  [OK] Installed IINA plugin to ${PLUGIN_DST}"
-
-# 5. Install standalone MacFrame.app control center
-if [[ -d "${ROOT_DIR}/build/MacFrame.app" ]]; then
-    APP_DST_DIR="$(dirname "${TARGET_APP}")"
-    if [[ ! -w "${APP_DST_DIR}" ]]; then
-        APP_DST_DIR="${HOME}/Applications"
-        mkdir -p "${APP_DST_DIR}"
-    fi
-    rm -rf "${APP_DST_DIR}/MacFrame.app"
-    cp -R "${ROOT_DIR}/build/MacFrame.app" "${APP_DST_DIR}/MacFrame.app"
-    xattr -cr "${APP_DST_DIR}/MacFrame.app" 2>/dev/null || true
-    codesign --force --sign - "${APP_DST_DIR}/MacFrame.app/Contents/Frameworks/libmacframe.1.0.0.dylib"
-    codesign --force --sign - "${APP_DST_DIR}/MacFrame.app"
-    echo "  [OK] Installed standalone control app to ${APP_DST_DIR}/MacFrame.app"
+# 4. Install MacFrame IINA Plugin (optional HUD & quick menu)
+PLUGIN_SRC="${ROOT_DIR}/iina-plugin/MacFrame.iinaplugin"
+if [[ -d "${PLUGIN_SRC}" ]]; then
+    PLUGIN_DST_DIR="${HOME}/Library/Application Support/com.colliderli.iina/plugins"
+    PLUGIN_DST="${PLUGIN_DST_DIR}/io.github.pseudoomer.macframe.iinaplugin"
+    mkdir -p "${PLUGIN_DST_DIR}"
+    rm -rf "${PLUGIN_DST}"
+    cp -R "${PLUGIN_SRC}" "${PLUGIN_DST}"
+    defaults write com.colliderli.iina iinaEnablePluginSystem -bool true 2>/dev/null || true
+    defaults write com.colliderli.iina "PluginEnabled.io.github.pseudoomer.macframe" -bool true 2>/dev/null || true
+    echo "  [OK] Installed IINA plugin to ${PLUGIN_DST}"
 fi
 
-# 6. Install Auto-Heal LaunchAgent so IINA updates automatically re-inject MacFrame
+# 5. Install standalone MacFrame.app control center (skip when invoked from inside installed app)
+APP_DST_DIR="$(dirname "${TARGET_APP}")"
+if [[ ! -w "${APP_DST_DIR}" ]]; then
+    APP_DST_DIR="${HOME}/Applications"
+    mkdir -p "${APP_DST_DIR}"
+fi
+INSTALLED_APP="${APP_DST_DIR}/MacFrame.app"
+
+APP_SRC=""
+if [[ "${SKIP_APP_COPY}" -eq 0 ]]; then
+    for cand in "${ROOT_DIR}/dist/MacFrame.app" "${ROOT_DIR}/build/MacFrame.app"; do
+        if [[ -d "${cand}" ]]; then
+            APP_SRC="${cand}"
+            break
+        fi
+    done
+    # If invoked from inside a standalone MacFrame.app (e.g. launched directly from a mounted DMG)
+    if [[ -z "${APP_SRC}" && "$(basename "${ROOT_DIR}")" == "Resources" ]]; then
+        CAND_APP="$(cd "${ROOT_DIR}/../.." 2>/dev/null && pwd -P || true)"
+        if [[ -n "${CAND_APP}" && "${CAND_APP}" == *.app && -d "${CAND_APP}/Contents/MacOS" ]]; then
+            APP_SRC="${CAND_APP}"
+        fi
+    fi
+fi
+
+if [[ -n "${APP_SRC}" ]]; then
+    APP_SRC_REAL="$(cd "${APP_SRC}" && pwd -P)"
+    APP_DST_REAL=""
+    if [[ -d "${INSTALLED_APP}" ]]; then
+        APP_DST_REAL="$(cd "${INSTALLED_APP}" && pwd -P)"
+    fi
+    if [[ "${APP_SRC_REAL}" != "${APP_DST_REAL}" && "${ROOT_DIR}" != "${INSTALLED_APP}"* ]]; then
+        rm -rf "${INSTALLED_APP}"
+        cp -R "${APP_SRC}" "${INSTALLED_APP}"
+        xattr -cr "${INSTALLED_APP}" 2>/dev/null || true
+        codesign --force --sign - "${INSTALLED_APP}/Contents/Frameworks/libmacframe.1.0.0.dylib"
+        if [[ -f "${INSTALLED_APP}/Contents/Resources/dist/libmacframe.dylib" ]]; then
+            codesign --force --sign - "${INSTALLED_APP}/Contents/Resources/dist/libmacframe.dylib"
+        fi
+        if [[ -f "${INSTALLED_APP}/Contents/Resources/dist/libavfilter.10.dylib" ]]; then
+            codesign --force --sign - "${INSTALLED_APP}/Contents/Resources/dist/libavfilter.10.dylib"
+        fi
+        codesign --force --sign - "${INSTALLED_APP}"
+        echo "  [OK] Installed standalone control app to ${INSTALLED_APP}"
+    fi
+fi
+
+# 6. Install persistent Auto-Heal LaunchAgent so IINA updates automatically re-inject MacFrame
+# Prefer the self-contained installer inside /Applications/MacFrame.app so deleting the download folder won't break auto-heal
+PERSISTENT_INSTALLER="${ROOT_DIR}/installer/macframe-install.sh"
+if [[ -x "${INSTALLED_APP}/Contents/Resources/installer/macframe-install.sh" ]]; then
+    PERSISTENT_INSTALLER="${INSTALLED_APP}/Contents/Resources/installer/macframe-install.sh"
+fi
+
 WATCHER_DIR="${HOME}/Library/Application Support/MacFrame"
 WATCHER_SH="${WATCHER_DIR}/auto-reinject.sh"
 mkdir -p "${WATCHER_DIR}"
 cat > "${WATCHER_SH}" <<EOF
 #!/usr/bin/env bash
 if [[ -d "${TARGET_APP}/Contents/Frameworks" && ! -f "${TARGET_APP}/Contents/Frameworks/libmacframe.dylib" ]]; then
-    "${ROOT_DIR}/installer/macframe-install.sh" "${TARGET_APP}" >/dev/null 2>&1 || true
+    if [[ -x "${PERSISTENT_INSTALLER}" ]]; then
+        "${PERSISTENT_INSTALLER}" --skip-app-copy "${TARGET_APP}" >/dev/null 2>&1 || true
+    fi
 fi
 EOF
 chmod +x "${WATCHER_SH}"
